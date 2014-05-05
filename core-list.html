@@ -90,6 +90,17 @@ For performance reasons, not every item in the list is rendered at once.
      */
     selectedProperty: 'selected',
 
+    // TODO(sorvell): experimental
+    /**
+     * 
+     * If true, data is sync'd from the list back to the list's data.
+     *
+     * @attribute sync
+     * @type boolean
+     * @default false
+     */
+    sync: true,
+
     /**
      * 
      * Set to true to support multiple selection.
@@ -104,10 +115,17 @@ For performance reasons, not every item in the list is rendered at once.
       'data template': 'initialize'
     },
 
+    ready: function() {
+      this.clearSelection();
+    },
+
     attached: function() {
       this.template = this.querySelector('template');
     },
 
+    // TODO(sorvell): it'd be nice to dispense with 'data' and just use 
+    // template repeat's model. However, we need tighter integration
+    // with TemplateBinding for this.
     initialize: function() {
       if (!this.data || !this.template) {
         return;
@@ -117,6 +135,7 @@ For performance reasons, not every item in the list is rendered at once.
       this.onMutation(this, this.initializeItems);
     },
 
+    // TODO(sorvell): need to handle resizing
     initializeViewport: function() {
       this.$.viewport.style.height = this.height * this.data.length + 'px';
       this._visibleCount = Math.ceil(this.offsetHeight / this.height);
@@ -124,10 +143,11 @@ For performance reasons, not every item in the list is rendered at once.
       this._physicalHeight = this.height * this._physicalCount;
     },
 
+    // TODO(sorvell): selection currently cannot be maintained when
+    // items are added or deleted.
     initalizeData: function() {
       var exampleDatum = this.data[0];
       this._propertyNames = Object.getOwnPropertyNames(exampleDatum);
-      this.selectedData = [];
       this._physicalData = new Array(this._physicalCount);
       for (var i = 0; i < this._physicalCount; ++i) {
         this._physicalData[i] = {};
@@ -144,19 +164,44 @@ For performance reasons, not every item in the list is rendered at once.
         this._physicalItems[i] = item;
         item._transformValue = 0;
       }
+      this.refresh(false);
     },
 
     updateItem: function(virtualIndex, physicalIndex) {
       var virtualDatum = this.data[virtualIndex];
       var physicalDatum = this._physicalData[physicalIndex];
+      this.pushItemData(virtualDatum, physicalDatum);
+      physicalDatum._physicalIndex = physicalIndex;
+      physicalDatum._virtualIndex = virtualIndex;
+      if (this.selectedProperty) {
+        physicalDatum[this.selectedProperty] = this._selectedData.get(virtualDatum);
+      }
+    },
+
+    pushItemData: function(source, dest) {
       for (var i = 0; i < this._propertyNames.length; ++i) {
         var propertyName = this._propertyNames[i];
-        physicalDatum[propertyName] = virtualDatum[propertyName];
-        physicalDatum._physicalIndex = physicalIndex;
-        physicalDatum._virtualIndex = virtualIndex;
+        dest[propertyName] = source[propertyName];
       }
-      if (this.selectedProperty) {
-        physicalDatum[this.selectedProperty] = this.selectedData[virtualIndex];
+    },
+
+    // experimental: push physical data back to this.data.
+    // this is optional when scrolling and needs to be called at other times.
+    syncData: function() {
+      if (this.firstPhysicalIndex === undefined || 
+          this.baseVirtualIndex === undefined) {
+        return;
+      }
+      var p, v;
+      for (var i = 0; i < this.firstPhysicalIndex; ++i) {
+        p = this._physicalData[i];
+        v = this.data[this.baseVirtualIndex + this._physicalCount + i];
+        this.pushItemData(p, v);
+      }
+      for (var i = this.firstPhysicalIndex; i < this._physicalCount; ++i) {
+        p = this._physicalData[i];
+        v = this.data[this.baseVirtualIndex + i];
+        this.pushItemData(p, v);
       }
     },
 
@@ -187,6 +232,12 @@ For performance reasons, not every item in the list is rendered at once.
 
       var baseTransformString = 'translate3d(0,' + baseTransformValue + 'px,0)';
       var nextTransformString = 'translate3d(0,' + nextTransformValue + 'px,0)';
+      // TODO(sorvell): experiemental for sync'ing back to virtual data.
+      if (this.sync) {
+        this.syncData();
+      }
+      this.firstPhysicalIndex = firstPhysicalIndex;
+      this.baseVirtualIndex = baseVirtualIndex;
 
       for (var i = 0; i < firstPhysicalIndex; ++i) {
         var item = this._physicalItems[i];
@@ -209,6 +260,9 @@ For performance reasons, not every item in the list is rendered at once.
       if (e.target === this) {
         return;
       }
+      if (this.sync) {
+        this.syncData();
+      }
       var n = e.target;
       var model = n.templateInstance && n.templateInstance.model;
       if (model) {
@@ -224,7 +278,7 @@ For performance reasons, not every item in the list is rendered at once.
         var i$ = this.indexesForData(detail.item);
         // TODO(sorvell): we should be relying on selection to store the
         // selected data but we want to optimize for lookup.
-        this.selectedData[i$.virtual] = detail.isSelected;
+        this._selectedData.set(detail.item, detail.isSelected);
         if (i$.physical >= 0) {
           this.updateItem(i$.virtual, i$.physical);
         }
@@ -282,6 +336,7 @@ For performance reasons, not every item in the list is rendered at once.
     },
 
     clearSelection: function() {
+      this._selectedData = new WeakMap();
       if (this.multi) {
         var s$ = this.selection;
         for (var i=0, l=s$.length, s; (i<l) && (s=s$[i]); i++) {
