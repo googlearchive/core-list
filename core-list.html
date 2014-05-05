@@ -28,7 +28,7 @@ For performance reasons, not every item in the list is rendered at once.
 <link rel="import" href="../polymer/polymer.html">
 <link rel="import" href="../core-selection/core-selection.html">
 
-<polymer-element name="core-list" attributes="height data multi" on-tap="{{tapHandler}}" on-scroll="{{scrollHandler}}">
+<polymer-element name="core-list" on-tap="{{tapHandler}}" on-scroll="{{scrollHandler}}">
 <template>
   <core-selection id="selection" multi="{{multi}}" on-core-select="{{selectedHandler}}"></core-selection>
   <link rel="stylesheet" href="core-list.css">
@@ -38,78 +38,83 @@ For performance reasons, not every item in the list is rendered at once.
 (function() {
 
   Polymer('core-list', {
-    /**
-     * Fired when an item element is tapped.
-     * 
-     * @event core-activate
-     * @param {Object} detail
-     *   @param {Object} detail.item the item element
-     */
+    
+    publish: {
+    
+      /**
+       * Fired when an item element is tapped.
+       * 
+       * @event core-activate
+       * @param {Object} detail
+       *   @param {Object} detail.item the item element
+       */
 
-    /**
-     * 
-     * An array of source data for the list to display.
-     *
-     * @attribute data
-     * @type array
-     * @default null
-     */
-    data: null,
+      /**
+       * 
+       * An array of source data for the list to display.
+       *
+       * @attribute data
+       * @type array
+       * @default null
+       */
+      data: null,
 
-    /**
-     * 
-     * The height of a list item. `core-list` currently supports only fixed-height
-     * list items. This height must be specified via the height property.
-     *
-     * @attribute height
-     * @type number
-     * @default 80
-     */
-    height: 80,
+      /**
+       * 
+       * The height of a list item. `core-list` currently supports only fixed-height
+       * list items. This height must be specified via the height property.
+       *
+       * @attribute height
+       * @type number
+       * @default 80
+       */
+      height: 80,
 
-    /**
-     * 
-     * The number of extra items rendered above the minimum set required to
-     * fill the list's height.
-     *
-     * @attribute extraItems
-     * @type number
-     * @default 30
-     */
-    extraItems: 30,
+      /**
+       * 
+       * The number of extra items rendered above the minimum set required to
+       * fill the list's height.
+       *
+       * @attribute extraItems
+       * @type number
+       * @default 30
+       */
+      extraItems: 30,
 
-    /**
-     * 
-     * The property set on the list view data to represent selection state. 
-     * This should set so that it does not conflict with other data properties.
-     * Note, selection data is not stored on the data in given in the data property.
-     *
-     * @attribute selectedProperty
-     * @type string
-     * @default 'selected'
-     */
-    selectedProperty: 'selected',
+      /**
+       * 
+       * The property set on the list view data to represent selection state. 
+       * This should set so that it does not conflict with other data properties.
+       * Note, selection data is not stored on the data in given in the data property.
+       *
+       * @attribute selectedProperty
+       * @type string
+       * @default 'selected'
+       */
+      selectedProperty: 'selected',
 
-    // TODO(sorvell): experimental
-    /**
-     * 
-     * If true, data is sync'd from the list back to the list's data.
-     *
-     * @attribute sync
-     * @type boolean
-     * @default false
-     */
-    sync: false,
+      // TODO(sorvell): experimental
+      /**
+       * 
+       * If true, data is sync'd from the list back to the list's data.
+       *
+       * @attribute sync
+       * @type boolean
+       * @default false
+       */
+      sync: false,
 
-    /**
-     * 
-     * Set to true to support multiple selection.
-     *
-     * @attribute multi
-     * @type boolean
-     * @default false
-     */
-    multi: false,
+      /**
+       * 
+       * Set to true to support multiple selection.
+       *
+       * @attribute multi
+       * @type boolean
+       * @default false
+       */
+      multi: false
+
+    },
     
     observe: {
       'data template': 'initialize'
