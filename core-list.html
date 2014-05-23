@@ -176,6 +176,7 @@ For performance reasons, not every item in the list is rendered at once.
     initalizeData: function() {
       var exampleDatum = this.data[0];
       this._propertyNames = Object.getOwnPropertyNames(exampleDatum);
+      this._physicalCount = Math.min(this._physicalCount, this.data.length);
       this._physicalData = new Array(this._physicalCount);
       for (var i = 0; i < this._physicalCount; ++i) {
         this._physicalData[i] = {};
