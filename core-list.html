@@ -32,7 +32,7 @@ For performance reasons, not every item in the list is rendered at once.
 <link rel="import" href="../polymer/polymer.html">
 <link rel="import" href="../core-selection/core-selection.html">
 
-<polymer-element name="core-list" on-tap="{{tapHandler}}" on-scroll="{{scrollHandler}}">
+<polymer-element name="core-list" on-tap="{{tapHandler}}">
 <template>
   <core-selection id="selection" multi="{{multi}}" on-core-select="{{selectedHandler}}"></core-selection>
   <link rel="stylesheet" href="core-list.css">
@@ -44,7 +44,6 @@ For performance reasons, not every item in the list is rendered at once.
   Polymer('core-list', {
     
     publish: {
-    
       /**
        * Fired when an item element is tapped.
        * 
@@ -62,6 +61,16 @@ For performance reasons, not every item in the list is rendered at once.
        * @default null
        */
       data: null,
+
+      /**
+       * 
+       * An optional element on which to listen for scroll events.
+       *
+       * @attribute scrollTarget
+       * @type Element
+       * @default core-list
+       */
+      scrollTarget: null,
 
       /**
        * 
@@ -121,11 +130,12 @@ For performance reasons, not every item in the list is rendered at once.
     },
     
     observe: {
-      'data template': 'initialize'
+      'data template scrollTarget': 'initialize'
     },
 
     ready: function() {
       this.clearSelection();
+      this._boundScrollHandler = this.scrollHandler.bind(this);
     },
 
     attached: function() {
@@ -139,6 +149,15 @@ For performance reasons, not every item in the list is rendered at once.
       if (!this.data || !this.template) {
         return;
       }
+      var target = this.scrollTarget || this;
+      if (this._target !== target) {
+        if (this._target) {
+          this._target.removeEventListener('scroll', this._boundScrollHandler, false);
+        }
+        this._target = target;
+        this._target.addEventListener('scroll', this._boundScrollHandler, false);
+      }
+
       this.initializeViewport();
       this.initalizeData();
       this.onMutation(this, this.initializeItems);
@@ -147,7 +166,7 @@ For performance reasons, not every item in the list is rendered at once.
     // TODO(sorvell): need to handle resizing
     initializeViewport: function() {
       this.$.viewport.style.height = this.height * this.data.length + 'px';
-      this._visibleCount = Math.ceil(this.offsetHeight / this.height);
+      this._visibleCount = Math.ceil(this._target.offsetHeight / this.height);
       this._physicalCount = this._visibleCount + this.extraItems;
       this._physicalHeight = this.height * this._physicalCount;
     },
@@ -214,7 +233,8 @@ For performance reasons, not every item in the list is rendered at once.
       }
     },
 
-    scrollHandler: function() {
+    scrollHandler: function(e, detail) {
+      this._scrollTop = e.detail ? e.detail.target.scrollTop : e.target.scrollTop;
       this.refresh(false);
     },
 
@@ -224,7 +244,7 @@ For performance reasons, not every item in the list is rendered at once.
      * @method refresh
      */
     refresh: function(force) {
-      var firstVisibleIndex = Math.floor(this.scrollTop / this.height);
+      var firstVisibleIndex = Math.floor(this._scrollTop / this.height);
       var visibleMidpoint = firstVisibleIndex + this._visibleCount / 2;
 
       var firstReifiedIndex = Math.max(0, Math.floor(visibleMidpoint - 
