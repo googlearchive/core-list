@@ -167,7 +167,8 @@ For performance reasons, not every item in the list is rendered at once.
     initializeViewport: function() {
       this.$.viewport.style.height = this.height * this.data.length + 'px';
       this._visibleCount = Math.ceil(this._target.offsetHeight / this.height);
-      this._physicalCount = this._visibleCount + this.extraItems;
+      this._physicalCount = Math.min(this._visibleCount + this.extraItems,
+          this.data.length);
       this._physicalHeight = this.height * this._physicalCount;
     },
 
