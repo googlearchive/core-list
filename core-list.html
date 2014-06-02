@@ -21,7 +21,7 @@ list view data for each selected item.
 For performance reasons, not every item in the list is rendered at once.
 
     <core-list data="{{data}}" height="80">
-      <template repeat>
+      <template>
         <div class="{{ {selected: selected} | tokenList }}">List row: {{index}}</div>
       </template>
     </core-list>
@@ -183,6 +183,7 @@ For performance reasons, not every item in the list is rendered at once.
         this.updateItem(i, i);
       }
       this.template.model = this._physicalData;
+      this.template.setAttribute('repeat', '');
     },
 
     initializeItems: function() {
