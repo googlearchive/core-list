@@ -4,6 +4,7 @@
   /*-webkit-overflow-scrolling: touch;
   -webkit-transform: translateZ(0);
   transform: translateZ(0);*/
+  outline: none;
 }
 
 .core-list-viewport > * {
