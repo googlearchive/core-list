@@ -1,0 +1,62 @@
+<!doctype html>
+<!--
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <title>core-list</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <script src="../../../platform/platform.js"></script>
+  <link rel="import" href="../../../polymer-test-tools/ci-tools.html">
+  <link rel="import" href="../../core-list.html">
+  <style>
+    html, body {
+      margin: 0;
+      -webkit-tap-highlight-color: transparent;
+      overflow: hidden;
+    }
+    core-list {
+      display: block;
+      height: 100%;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body fit>
+
+<core-list id="list">
+  <template>
+    <div class="item {{ {selected: selected} | tokenList }}">
+      <div class="subject">Row: {{index}}, Record ID: {{model.id}}</div>
+      <input type="checkbox" checked="{{model.checked}}">
+      <input type="number" value="{{model.value}}" class="narrow">
+      <select selectedIndex="{{model.type}}"><option>a</option><option>b</option><option>c</option></select>
+    </div>
+  </template>
+</core-list>
+
+<script>
+  document.addEventListener('polymer-ready', function() {
+    // Test a property
+    var el = document.querySelector('core-list');
+    el.data = [
+      {id:123, checked:true, value:99, type:1},
+      {id:456, checked:false, value:88, type:2}
+    ];
+    el.onMutation(el, function() {
+      chai.assert(el.children.length == el.data.length + 1, 
+        'children.length should be 1 (template) + count of data elements');
+      done();
+    });
+
+  });
+
+</script>
+
+</body>
+</html>
