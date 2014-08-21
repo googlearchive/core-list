@@ -1,5 +1,5 @@
 {
-	"runner": "gulp-web-component-runner",
+	"runner": "gulp-web-component-tester",
 	"tools": ["chai", "mocha-tdd"],
 	"tests": [
 		"js/htmltests.js"
