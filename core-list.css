@@ -19,3 +19,10 @@
 .core-list-viewport.horizontal > * {
   display: inline-block;
 }
+
+/* Setting will-change: transform on the #viewport makes the viewport a
+   stacking context, which causes all the composited layers inside the
+   viewport to actually be stacked underneath the viewport. */
+#viewport {
+  will-change: transform;
+}
