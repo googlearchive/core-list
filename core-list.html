@@ -213,6 +213,9 @@ For performance reasons, not every item in the list is rendered at once.
         var propertyName = this._propertyNames[i];
         dest[propertyName] = source[propertyName];
       }
+
+      // add reference to the original model
+      dest._ = source;
     },
 
     // experimental: push physical data back to this.data.
