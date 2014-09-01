@@ -36,7 +36,7 @@ For performance reasons, not every item in the list is rendered at once.
 <template>
   <core-selection id="selection" multi="{{multi}}" on-core-select="{{selectedHandler}}"></core-selection>
   <link rel="stylesheet" href="core-list.css">
-  <div id="viewport" class="core-list-viewport"><content></content></div>
+  <div id="viewport" class="core-list-viewport" grid?="{{grid}}"><content></content></div>
 </template>
 <script>
 (function() {
@@ -74,6 +74,16 @@ For performance reasons, not every item in the list is rendered at once.
 
       /**
        * 
+       * Enable grid layout, requires both height and width to be set.
+       *
+       * @attribute grid
+       * @type boolean
+       * @default false
+       */
+      grid: false,
+
+      /**
+       * 
        * The height of a list item. `core-list` currently supports only fixed-height
        * list items. This height must be specified via the height property.
        *
@@ -82,6 +92,16 @@ For performance reasons, not every item in the list is rendered at once.
        * @default 80
        */
       height: 80,
+
+      /**
+       * 
+       * The width of a list item. Must be specified when using grid layout.
+       *
+       * @attribute height
+       * @type number
+       * @default null
+       */
+      width: 0,
 
       /**
        * 
@@ -136,10 +156,12 @@ For performance reasons, not every item in the list is rendered at once.
     ready: function() {
       this.clearSelection();
       this._boundScrollHandler = this.scrollHandler.bind(this);
+      this._boundResizeHandler = this.resizeHandler.bind(this);
     },
 
     attached: function() {
       this.template = this.querySelector('template');
+      window.addEventListener('resize', this._boundResizeHandler);
     },
 
     // TODO(sorvell): it'd be nice to dispense with 'data' and just use 
@@ -165,11 +187,28 @@ For performance reasons, not every item in the list is rendered at once.
 
     // TODO(sorvell): need to handle resizing
     initializeViewport: function() {
-      this.$.viewport.style.height = this.height * this.data.length + 'px';
-      this._visibleCount = Math.ceil(this._target.offsetHeight / this.height);
-      this._physicalCount = Math.min(this._visibleCount + this.extraItems,
-          this.data.length);
-      this._physicalHeight = this.height * this._physicalCount;
+      this._extraItems = this.extraItems;
+      if (this.grid && this.width > 0) {
+        this._rowCount = Math.floor(this._target.offsetWidth / this.width);
+        // Round extraItems to full row
+        this._extraItems = Math.max(this._rowCount, this._extraItems);
+        if (this._extraItems > this._rowCount) {
+          this._extraItems = this._extraItems - (this._extraItems % this._rowCount);
+        }
+        this._visibleCount = Math.ceil(this._target.offsetHeight / this.height) *
+            this._rowCount + this._rowCount;
+        this._physicalCount = Math.min(this._visibleCount + this._extraItems,
+            this.data.length);
+        this._physicalHeight = this.height * this._physicalCount / this._rowCount;
+        var numRows = Math.ceil(this.data.length / this._rowCount);
+        this.$.viewport.style.height = this.height * numRows + 'px';
+      } else {
+        this._visibleCount = Math.ceil(this._target.offsetHeight / this.height + 1);
+        this._physicalCount = Math.min(this._visibleCount + this._extraItems,
+            this.data.length);
+        this._physicalHeight = this.height * this._physicalCount;
+        this.$.viewport.style.height = this.height * this.data.length + 'px';
+      }
     },
 
     // TODO(sorvell): selection currently cannot be maintained when
@@ -235,6 +274,10 @@ For performance reasons, not every item in the list is rendered at once.
       }
     },
 
+    resizeHandler: function() {
+      this.job('listResize', this.initialize, 100);
+    },
+
     scrollHandler: function(e, detail) {
       this._scrollTop = e.detail ? e.detail.target.scrollTop : e.target.scrollTop;
       this.refresh(false);
@@ -246,7 +289,13 @@ For performance reasons, not every item in the list is rendered at once.
      * @method refresh
      */
     refresh: function(force) {
-      var firstVisibleIndex = Math.floor(this._scrollTop / this.height);
+      var scrollTop = this._scrollTop || this._target.scrollTop;
+
+      if (this.grid && this.width > 0) {
+        var firstVisibleIndex = Math.floor(scrollTop / this.height) * this._rowCount;
+      } else {
+        var firstVisibleIndex = Math.floor(scrollTop / this.height);
+      }
       var visibleMidpoint = firstVisibleIndex + this._visibleCount / 2;
 
       var firstReifiedIndex = Math.max(0, Math.floor(visibleMidpoint - 
@@ -257,7 +306,12 @@ For performance reasons, not every item in the list is rendered at once.
       var firstPhysicalIndex = firstReifiedIndex % this._physicalCount;
       var baseVirtualIndex = firstReifiedIndex - firstPhysicalIndex;
 
-      var baseTransformValue = Math.floor(this.height * baseVirtualIndex);
+      if (this.grid && this.width > 0) {
+        var baseTransformValue = Math.floor(this.height / this._rowCount *
+            baseVirtualIndex);
+      } else {
+        var baseTransformValue = Math.floor(this.height * baseVirtualIndex);
+      }
       var nextTransformValue = Math.floor(baseTransformValue + 
           this._physicalHeight);
 
@@ -380,7 +434,12 @@ For performance reasons, not every item in the list is rendered at once.
     },
 
     scrollToItem: function(index) {
-      this.scrollTop = index * this.height;
+      if (this.grid && this.width > 0) {
+        var numRows = Math.floor(index / this._rowCount);
+        this.scrollTop = numRows * this.height;
+      } else {
+        this.scrollTop = index * this.height;
+      }
     }
 
   });
