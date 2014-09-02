@@ -169,6 +169,10 @@ should be done via binding to the `selected` property of each model.
       this._boundScrollHandler = this.scrollHandler.bind(this);
       this._oldMulti = this.multi;
       this._oldSelectionEnabled = this.selectionEnabled;
+      this._virtualStart = 0;
+      this._physicalOffset = 0;
+      this._physicalSize = 0;
+      this._virtualSizes = [];
     },
 
     attached: function() {
@@ -276,61 +280,57 @@ should be done via binding to the `selected` property of each model.
       this.refresh(false);
     },
 
+    updateMetrics: function() {
+      var totalSize = 0;
+      for (var i=0; i<this._physicalCount; i++) {
+        var item = this._physicalItems[i];
+        var size = this._virtualSizes[i + this._virtualStart] = item.offsetHeight;
+        totalSize += size;
+      }
+      this._physicalSize = totalSize;
+      this._physicalAverage = totalSize / this._physicalCount;
+      this.$.viewport.style.height = (this._physicalAverage * this.data.length) + 'px';
+    },
+
     /**
      * Refresh the list at the current scroll position.
      *
      * @method refresh
      */
     refresh: function(force) {
-      // Check that the array hasn't gotten longer since data was initialized
-      var dataLen = this.data && this.data.length || 0;
-      if (force) {
-        if (this._physicalCount < 
-            Math.min(this._visibleCount + this.extraItems, dataLen)) {
-          // Need to add more items; once new data & items are initialized,
-          // refresh will be run again
-          this.initializeData();
-          return;
-        }
-        this._physicalHeight = this.height * this._physicalCount;
-        this.$.viewport.style.height = this.height * dataLen + 'px';
+      if (!this.data) {
+        return;
       }
 
-      var firstVisibleIndex = Math.floor(this._scrollTop / this.height);
-      var visibleMidpoint = firstVisibleIndex + this._visibleCount / 2;
-
-      var firstReifiedIndex = Math.max(0, Math.floor(visibleMidpoint - 
-          this._physicalCount / 2));
-      firstReifiedIndex = Math.min(firstReifiedIndex, dataLen - 
-          this._physicalCount);
-      firstReifiedIndex = (firstReifiedIndex < 0) ? 0 : firstReifiedIndex;
-
-      var firstPhysicalIndex = firstReifiedIndex % this._physicalCount;
-      var baseVirtualIndex = firstReifiedIndex - firstPhysicalIndex;
-
-      var baseTransformValue = Math.floor(this.height * baseVirtualIndex);
-      var nextTransformValue = Math.floor(baseTransformValue + 
-          this._physicalHeight);
-
-      var baseTransformString = 'translate3d(0,' + baseTransformValue + 'px,0)';
-      var nextTransformString = 'translate3d(0,' + nextTransformValue + 'px,0)';
-
-      this.firstPhysicalIndex = firstPhysicalIndex;
-      this.baseVirtualIndex = baseVirtualIndex;
-
-      for (var i = 0; i < firstPhysicalIndex; ++i) {
-        var item = this._physicalItems[i];
-        if (force || item._transformValue != nextTransformValue) {
-          this.updateItem(baseVirtualIndex + this._physicalCount + i, i);
-          setTransform(item, nextTransformString, nextTransformValue);
+      this.updateMetrics(force);
+      var i, size;
+      if (this._physicalSize > this.offsetHeight) {
+        // Flip down
+        var lowerLimit = this._scrollTop - this._physicalOffset - (this._physicalSize - this.offsetHeight) * 3/4;
+        var upperLimit = this._physicalOffset + (this._physicalSize - this.offsetHeight) * 1/4 - this._scrollTop;
+        console.log('upper', upperLimit, 'lower', lowerLimit);
+        for (i=0; lowerLimit > 0 && this._virtualStart < this.data.length-1; i++) {
+          size = this._virtualSizes[this._virtualStart] || this._physicalAverage;
+          this._physicalOffset += size;
+          lowerLimit -= size;
+          console.log('flip down', this._virtualStart, size, lowerLimit);
+          this._virtualStart++;
         }
+        // Flip up
+        for (i=this.data.length-1; upperLimit > 0 && this._virtualStart > 0; i--) {
+          size = this._virtualSizes[this._virtualStart-1] || this._physicalAverage;
+          this._physicalOffset -= size;
+          upperLimit -= size;
+          console.log('flip up', this._virtualStart, size, upperLimit);
+          this._virtualStart--;
+        }        
       }
-      for (var i = firstPhysicalIndex; i < this._physicalCount; ++i) {
+
+      // Assign data & position
+      for (i = 0; i < this._physicalCount; ++i) {
         var item = this._physicalItems[i];
-        if (force || item._transformValue != baseTransformValue) {
-          this.updateItem(baseVirtualIndex + i, i);
-          setTransform(item, baseTransformString, baseTransformValue);
-        }
+        this.updateItem(this._virtualStart + i, i);
+        setTransform(item, this._physicalOffset);
       }
     },
 
@@ -458,12 +458,14 @@ should be done via binding to the `selected` property of each model.
 
   // determine proper transform mechanizm
   if (document.documentElement.style.transform !== undefined) {
-    var setTransform = function(element, string, value) {
+    var setTransform = function(element, value) {
+      var string = 'translate3d(0,' + value + 'px,0)';
       element.style.transform = string;
       element._transformValue = value;
     }
   } else {
     var setTransform = function(element, string, value) {
+      var string = 'translate3d(0,' + value + 'px,0)';
       element.style.webkitTransform = string;
       element._transformValue = value;
     }

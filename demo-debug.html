@@ -1,0 +1,110 @@
+<!doctype html>
+<!--
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <title>core-list</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <script src="../platform/platform.js"></script>
+  <link rel="import" href="core-list.html">
+  <link rel="import" href="../core-ajax/core-ajax.html">
+  <style>
+    html, body {
+      margin: 0;
+      -webkit-tap-highlight-color: transparent;
+      overflow: hidden;
+    }
+    
+    list-test {
+      display: block;
+      height: 100%;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body fit>
+
+<list-test></list-test>
+
+<polymer-element name="list-test" layout vertical center-center relative>
+<template>
+  <style>
+    .item {
+      box-sizing: border-box;
+      padding: 10px;
+      overflow: hidden;
+      color: white;
+    }    
+    .body {
+      font-size: 12px;
+    }
+    core-list {
+      height: 30%;
+      width: 50%;
+      border: 3px solid black;
+    }
+    .item > img {
+      height: 50px;
+      width: 50px;
+    }
+    .marker {
+      position:absolute;
+      box-sizing: border-box;
+      border: 1px dotted gray;
+      color: gray;
+      z-index:-1;
+      text-align: right;
+      font-size: 2em;
+    }
+
+  </style>
+
+  <div style="position: absolute; top:{{$.list.offsetTop}}px; left:{{$.list.offsetLeft}}px; width:{{$.list.offsetWidth}}px; height:{{$.list.offsetHeight}}px">
+    <template repeat="{{$.list._physicalItems}}">
+      <div class="marker" style="top:{{offsetTop-parentNode.scrollTop+_transformValue}}px; left:{{offsetLeft}}px; width:{{offsetWidth}}px; height:{{offsetHeight}}px">
+        V: {{templateInstance.model.index}}, P: {{templateInstance.model.physicalIndex}}
+      </div>
+    </template>
+  </div>
+
+  <core-ajax url="demo-data.json" response="{{data}}" auto></core-ajax>
+
+  <core-list id="list" data="{{data}}" height="80" extraItems="4">
+    <template>
+      <div>
+        <div class="item" style="background-color: {{model.color}};">
+          <img src="{{model.image}}">
+          <span>Index: {{index}}</span>
+          <br>
+          <select selectedIndex="{{model.selectValue}}"><option>a</option><option>b</option><option>c</option></select>
+          <input type="checkbox" checked="{{model.checked}}">
+          <input value="{{model.name}}">
+          <div>{{model.text}}</div>
+        </div>
+      </div>
+    </template>
+  </core-list>
+
+</template>
+<script>
+(function() {
+
+  var colors = ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'violet'];
+
+  Polymer('list-test', {
+    ready: function() {
+      window.list = this.$.list;
+    }
+  });
+})();  
+</script>
+</polymer-element>
+
+</body>
+</html>
