@@ -49,22 +49,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     .body {
       font-size: 12px;
     }
+    .text {
+      padding: 15px;
+      margin-top: 10px;
+      border-radius: 15px;
+      background: lightgray;
+    }
+    .divider {
+      background: black;
+      color: white;
+      padding: 5px;
+      font-size: 3em;
+    }
 
   </style>
 
-  <core-ajax url="demo-data.json" response="{{data}}" auto></core-ajax>
+  <core-ajax url="demo-data-short.json" response="{{data}}" auto></core-ajax>
 
-  <core-list id="list" data="{{data}}" fit>
+  <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" fit>
     <template>
       <div>
-        <div class="item" style="xbackground-color: {{model.color}};">
+        <div class="divider" divider>
+          {{groupModel.letter}}
+        </div>
+        <div class="item">
           <img src="{{model.image}}">
           <span>Index: {{index}}</span>
           <br>
           <select selectedIndex="{{model.selectValue}}"><option>a</option><option>b</option><option>c</option></select>
           <input type="checkbox" checked="{{model.checked}}">
           <input value="{{model.name}}">
-          <div>{{model.text}}</div>
+          <div class="text">{{model.text}}</div>
         </div>
       </div>
     </template>

@@ -61,7 +61,9 @@ should be done via binding to the `selected` property of each model.
 <template>
   <core-selection id="selection" multi="{{multi}}" on-core-select="{{selectedHandler}}"></core-selection>
   <link rel="stylesheet" href="core-list.css">
-  <div id="viewport" class="core-list-viewport"><content></content></div>
+  <div id="viewport" class="core-list-viewport" style="height: {{_viewportHeight}}px">
+    <div id="page" class="core-list-page" style="top: {{_pageTop}}; bottom: {{_pageBottom}}"><content></content></div>
+  </div>
 </template>
 <script>
 (function() {
@@ -86,6 +88,8 @@ should be done via binding to the `selected` property of each model.
        * @default null
        */
       data: null,
+
+      groups: null,
 
       /**
        * 
@@ -117,7 +121,7 @@ should be done via binding to the `selected` property of each model.
        * @type number
        * @default 30
        */
-      extraItems: 30,
+      extraItems: 10,
 
       /**
        * 
@@ -161,7 +165,7 @@ should be done via binding to the `selected` property of each model.
     _scrollTop: 0,
     
     observe: {
-      'data template scrollTarget': 'initialize',
+      'data groups template scrollTarget': 'initialize',
       'multi selectionEnabled': '_resetSelection'
     },
 
@@ -170,9 +174,17 @@ should be done via binding to the `selected` property of each model.
       this._oldMulti = this.multi;
       this._oldSelectionEnabled = this.selectionEnabled;
       this._virtualStart = 0;
+      this._virtualCount = 0;
       this._physicalOffset = 0;
+      this._pagePosBasis = 'top';
+      this._pageTop = null;
+      this._pageBottom = null;
       this._physicalSize = 0;
-      this._virtualSizes = [];
+      this._physicalSizes = [];
+
+      this._flatGroups = false;
+      this._groupStart = 0;
+      this._groupStartIndex = 0;
     },
 
     attached: function() {
@@ -202,7 +214,7 @@ should be done via binding to the `selected` property of each model.
       if (!this.template) {
         return;
       }
-      
+
       // TODO(kschaaf): This is currently the only way to know that the array
       // was mutated as opposed to newly assigned; to be updated with better API
       if (arguments.length == 1) {
@@ -231,10 +243,34 @@ should be done via binding to the `selected` property of each model.
     },
 
     initializeData: function() {
+      // Count virtual data size, depending on whether grouping is enabled
+      if (!this.data) {        
+        this._virtualCount = 0;
+      } else if (this.groups) {
+        // if (this.stickyDivider) {
+        //   this.stickyDivider.remove();
+        // }
+        // this.stickyDivider = list.appendChild(document.importNode(this.template.ref_.content.querySelector('[divider]')));
+        // if (this.stickyDivider) {
+        //   this.stickyDivider.style.position = 'absolute';
+        // }
+        this._flatGroups = !Array.isArray(this.data[0]);
+        if (this._flatGroups) {
+          this._virtualCount = this.data.length;
+        } else {
+          this._virtualCount = 0;
+          for (var i=0; i<this.groups.length; i++) {
+            this._virtualCount += this.data[i] && this.data[i].length;
+          }
+        }
+      } else {
+        this._virtualCount = this.data.length;
+      }
+      
+      // Add physical items up to a max based on data length, viewport size, and extra item overhang
       var currentCount = this._physicalCount || 0;
-      var dataLen = this.data && this.data.length || 0;
       this._visibleCount = Math.ceil(this._target.offsetHeight / this.height);
-      this._physicalCount = Math.min(this._visibleCount + this.extraItems, dataLen);
+      this._physicalCount = Math.min(this._visibleCount + this.extraItems, this._virtualCount);
       this._physicalCount = Math.max(currentCount, this._physicalCount);
       this._physicalData = this._physicalData || new Array(this._physicalCount);
       var needItemInit = false;
@@ -263,33 +299,83 @@ should be done via binding to the `selected` property of each model.
       this.refresh(true);
     },
 
-    updateItem: function(virtualIndex, physicalIndex) {
-      var virtualDatum = this.data && this.data[virtualIndex];
+    updateItem: function(physicalIndex, groupIndex, groupItemIndex, virtualIndex) {
       var physicalDatum = this._physicalData[physicalIndex];
+      var virtualDatum;
+      if (groupIndex == null) {
+        virtualDatum = this.data && this.data[groupItemIndex];
+        physicalDatum.groupIndex = null;
+        physicalDatum.isDivider = null;
+        physicalDatum.groupModel = null;
+      } else {
+        virtualDatum = this.data && this._flatGroups ? this.data[virtualIndex] : this.data[groupIndex][groupItemIndex];
+        physicalDatum.groupIndex = groupIndex;
+        physicalDatum.isDivider = (groupItemIndex === 0);
+        var groupModel = this.groups[groupIndex];
+        physicalDatum.groupModel = this._flatGroups ? groupModel.data : groupModel;
+      }
       physicalDatum.model = virtualDatum;
+      physicalDatum.index = this._flatGroups ? virtualIndex : groupItemIndex;
+      physicalDatum.groupIndex = this.groups ? groupIndex : null;
+      physicalDatum.groupItemIndex = groupItemIndex;
       physicalDatum.physicalIndex = physicalIndex;
-      physicalDatum.index = virtualIndex;
       physicalDatum.selected = this.selectionEnabled && virtualDatum ? 
           this._selectedData.get(virtualDatum) : null;
       var physicalItem = this._physicalItems[physicalIndex];
       physicalItem.hidden = !virtualDatum;
+      physicalItem.classList.toggle('core-list-hide-divider', !physicalDatum.isDivider);
     },
 
     scrollHandler: function(e, detail) {
+      var lastScrollTop = this._scrollTop;
       this._scrollTop = e.detail ? e.detail.target.scrollTop : e.target.scrollTop;
-      this.refresh(false);
+      this.refresh(false, this._scrollTop - lastScrollTop);
     },
 
     updateMetrics: function() {
       var totalSize = 0;
       for (var i=0; i<this._physicalCount; i++) {
-        var item = this._physicalItems[i];
-        var size = this._virtualSizes[i + this._virtualStart] = item.offsetHeight;
+        var size = this._physicalSizes[i] = this._physicalItems[i].offsetHeight;
         totalSize += size;
       }
       this._physicalSize = totalSize;
       this._physicalAverage = totalSize / this._physicalCount;
-      this.$.viewport.style.height = (this._physicalAverage * this.data.length) + 'px';
+    },
+
+    getGroupLen: function(group) {
+      group = arguments.length ? group : this._groupStart;
+      if (this._flatGroups) {
+        return this.groups[group].length;
+      } else {
+        return this.data[group].length;
+      }
+    },
+
+    changeIndex: function(inc) {
+      this._virtualStart += inc;
+      if (this.groups) {
+        while (inc > 0) {
+          var groupMax = this.getGroupLen() - this._groupStartIndex;
+          if (inc > groupMax) {
+            inc -= groupMax;
+            this._groupStart++;
+            this._groupStartIndex = 0;
+          } else {
+            this._groupStartIndex += inc;
+            inc = 0;
+          }
+        }
+        while (inc < 0) {
+          if (-inc > this._groupStartIndex) {
+            inc += this._groupStartIndex;
+            this._groupStart--;
+            this._groupStartIndex = this.getGroupLen();
+          } else {
+            this._groupStartIndex += inc;
+            inc = this.getGroupLen();
+          }
+        }
+      }
     },
 
     /**
@@ -297,40 +383,117 @@ should be done via binding to the `selected` property of each model.
      *
      * @method refresh
      */
-    refresh: function(force) {
+    refresh: function(force, delta) {
+
       if (!this.data) {
         return;
       }
 
+      var i, size, limit, adjustNeeded, groupLen, deltaHeight;
+
       this.updateMetrics(force);
-      var i, size;
-      if (this._physicalSize > this.offsetHeight) {
-        // Flip down
-        var lowerLimit = this._scrollTop - this._physicalOffset - (this._physicalSize - this.offsetHeight) * 3/4;
-        var upperLimit = this._physicalOffset + (this._physicalSize - this.offsetHeight) * 1/4 - this._scrollTop;
-        console.log('upper', upperLimit, 'lower', lowerLimit);
-        for (i=0; lowerLimit > 0 && this._virtualStart < this.data.length-1; i++) {
-          size = this._virtualSizes[this._virtualStart] || this._physicalAverage;
-          this._physicalOffset += size;
-          lowerLimit -= size;
-          console.log('flip down', this._virtualStart, size, lowerLimit);
-          this._virtualStart++;
+
+      // Random access to point in list
+      if (false && Math.abs(delta) > this._physicalSize) {
+        var deltaCount = delta / this._physicalAverage;
+        var count;
+        this._virtualStart += deltaCount;
+        if (this.groups) {
         }
-        // Flip up
-        for (i=this.data.length-1; upperLimit > 0 && this._virtualStart > 0; i--) {
-          size = this._virtualSizes[this._virtualStart-1] || this._physicalAverage;
-          this._physicalOffset -= size;
-          upperLimit -= size;
-          console.log('flip up', this._virtualStart, size, upperLimit);
-          this._virtualStart--;
-        }        
+        this._physicalOffset += delta;
+        adjustNeeded = true;
+        delta = 0; // Avoid flipping logic
+        console.log(this._scrollTop, 'random access, new index', this._virtualStart);
       }
 
-      // Assign data & position
-      for (i = 0; i < this._physicalCount; ++i) {
-        var item = this._physicalItems[i];
-        this.updateItem(this._virtualStart + i, i);
-        setTransform(item, this._physicalOffset);
+      // Flip items up or down
+      if (this._physicalSize > this._target.offsetHeight) {
+        if (delta > 0) {
+          // Scrolling down; Flip page positioning basis if needed
+          if (this._pagePosBasis != 'top') {
+            this._pagePosBasis = 'top';
+            this._physicalOffset = (this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight);
+            adjustNeeded = true;
+          }
+          // Flip down
+          limit = this._scrollTop - this._physicalOffset - (this._physicalSize - this._target.offsetHeight) * 0.75;
+          // console.log(this._scrollTop, 'limit:', limit);
+          for (i=0; (i<this._physicalCount) && (limit > 0) && (this._virtualStart < this._virtualCount-1); i++) {
+            adjustNeeded = true;
+            size = this._physicalSizes[i] || this._physicalAverage;
+            this._physicalOffset += size;
+            limit -= size;
+            // console.log(this._scrollTop, 'flip down', this._virtualStart, size, limit);
+            this.changeIndex(+1);
+          }
+        } else if (delta < 0) {
+          // Scrolling up; Flip page positioning basis if needed
+          if (this._pagePosBasis != 'bottom') {
+            this._pagePosBasis = 'bottom';
+            this._physicalOffset = (this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight);
+            adjustNeeded = true;
+          }
+          // Ensure the scroller lands back at the top
+          if (this._virtualStart === 0 && this._physicalOffset !== 0) {
+            deltaHeight = this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight;
+            this._target.scrollTop -= deltaHeight;
+            this._physicalOffset += deltaHeight;
+            console.log('resetting scroll pos!');
+            adjustNeeded = true;
+          } else {
+            // Flip up
+            limit = (this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight) - this._scrollTop + (this._physicalSize - this._target.offsetHeight) * 0.25;
+            // console.log(this._scrollTop, 'limit:', limit);
+            for (i=this._physicalCount-1; (i >= 0) && (limit > 0) && (this._virtualStart > 0); i--) {
+              adjustNeeded = true;
+              size = this._physicalSizes[i] || this._physicalAverage;
+              this._physicalOffset += size;
+              limit -= size;
+              // console.log(this._scrollTop, 'flip up at', this._virtualStart, size, limit);
+              this.changeIndex(-1);
+            }
+          }
+        }
+      }
+
+      // Reset viewport height and adjust offset
+      var lastHeight = this._viewportHeight;
+      this._viewportHeight = this._physicalAverage * this._virtualCount;
+      deltaHeight = this._viewportHeight - lastHeight;
+      if (deltaHeight) {
+        if (this._pagePosBasis == 'bottom') {
+          this._physicalOffset += deltaHeight;
+        }
+        adjustNeeded = true;
+      }
+
+      // if (this.stickyDivider) {
+      //   this.stickyDivider.style.top = (this._scrollTop - this._physicalOffset) + 'px';
+      // }
+
+      if (adjustNeeded || force) {
+        // Re-assign data
+        var group = this.groups && this._groupStart;
+        var index = this._groupStartIndex;
+        for (i = 0; i < this._physicalCount; ++i) {
+          this.updateItem(i, group, index, this._virtualStart + i);
+          index++;
+          if (this.groups && group < this.groups.length - 1) {
+            if (index >= this.getGroupLen(group)) {
+              index = 0;
+              group++;
+            }
+          }
+        }
+        // Position page (bindings are used for positioning so offset shift & 
+        // data shift happen in same frame on polyfill)
+        if (this._pagePosBasis == 'top') {
+          this._pageTop = this._physicalOffset + 'px';
+          this._pageBottom = 'auto';
+        } else {
+          this._pageTop = 'auto';
+          this._pageBottom = this._physicalOffset + 'px';
+        }
       }
     },
 
@@ -455,21 +618,6 @@ should be done via binding to the `selected` property of each model.
     }
 
   });
-
-  // determine proper transform mechanizm
-  if (document.documentElement.style.transform !== undefined) {
-    var setTransform = function(element, value) {
-      var string = 'translate3d(0,' + value + 'px,0)';
-      element.style.transform = string;
-      element._transformValue = value;
-    }
-  } else {
-    var setTransform = function(element, string, value) {
-      var string = 'translate3d(0,' + value + 'px,0)';
-      element.style.webkitTransform = string;
-      element._transformValue = value;
-    }
-  }
 
 })();
 </script>

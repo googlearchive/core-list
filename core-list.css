@@ -8,6 +8,11 @@
   position: relative;
 }
 
+.core-list-page {
+  position: absolute;
+  transform: translateZ(0px);
+}
+
 .core-list-viewport > * {
   overflow: hidden;
 }
@@ -24,6 +29,15 @@
 /* Setting will-change: transform on the #viewport makes the viewport a
    stacking context, which causes all the composited layers inside the
    viewport to actually be stacked underneath the viewport. */
-#viewport {
+.core-list-viewport {
   will-change: transform;
+  position: relative;
+}
+
+::content .core-list-hide-divider > [divider] {
+  display: none;
+};
+
+::content .core-list-sticky-divider {
+  position: absolute;
 }

@@ -39,7 +39,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       box-sizing: border-box;
       padding: 10px;
       overflow: hidden;
-      color: white;
     }    
     .body {
       font-size: 12px;
@@ -62,23 +61,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       text-align: right;
       font-size: 2em;
     }
+    .divider {
+      background: black;
+      color: white;
+      padding: 5px;
+      font-size: 3em;
+    }
 
   </style>
 
   <div style="position: absolute; top:{{$.list.offsetTop}}px; left:{{$.list.offsetLeft}}px; width:{{$.list.offsetWidth}}px; height:{{$.list.offsetHeight}}px">
     <template repeat="{{$.list._physicalItems}}">
-      <div class="marker" style="top:{{offsetTop-parentNode.scrollTop+_transformValue}}px; left:{{offsetLeft}}px; width:{{offsetWidth}}px; height:{{offsetHeight}}px">
+      <div class="marker" style="top:{{offsetTop-parentNode.scrollTop+parentNode.$.page.offsetTop}}px; left:{{offsetLeft}}px; width:{{offsetWidth}}px; height:{{offsetHeight}}px">
         V: {{templateInstance.model.index}}, P: {{templateInstance.model.physicalIndex}}
       </div>
     </template>
   </div>
 
-  <core-ajax url="demo-data.json" response="{{data}}" auto></core-ajax>
+  <core-ajax url="demo-data-grouped-short.json" response="{{data}}" auto></core-ajax>
 
-  <core-list id="list" data="{{data}}" height="80" extraItems="4">
+  <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" height="80" extraItems="2">
     <template>
       <div>
-        <div class="item" style="background-color: {{model.color}};">
+        <div class="divider" divider>
+          {{groupModel.letter}}
+        </div>
+        <div class="item" style="xbackground-color: {{model.color}};">
           <img src="{{model.image}}">
           <span>Index: {{index}}</span>
           <br>
