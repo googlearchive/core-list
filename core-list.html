@@ -303,7 +303,7 @@ should be done via binding to the `selected` property of each model.
       var physicalDatum = this._physicalData[physicalIndex];
       var virtualDatum;
       if (groupIndex == null) {
-        virtualDatum = this.data && this.data[groupItemIndex];
+        virtualDatum = this.data && this.data[virtualIndex];
         physicalDatum.groupIndex = null;
         physicalDatum.isDivider = null;
         physicalDatum.groupModel = null;
@@ -315,7 +315,7 @@ should be done via binding to the `selected` property of each model.
         physicalDatum.groupModel = this._flatGroups ? groupModel.data : groupModel;
       }
       physicalDatum.model = virtualDatum;
-      physicalDatum.index = this._flatGroups ? virtualIndex : groupItemIndex;
+      physicalDatum.index = this.groups && !this._flatGroups ? groupItemIndex : virtualIndex;
       physicalDatum.groupIndex = this.groups ? groupIndex : null;
       physicalDatum.groupItemIndex = groupItemIndex;
       physicalDatum.physicalIndex = physicalIndex;
@@ -394,16 +394,20 @@ should be done via binding to the `selected` property of each model.
       this.updateMetrics(force);
 
       // Random access to point in list
-      if (false && Math.abs(delta) > this._physicalSize) {
-        var deltaCount = delta / this._physicalAverage;
-        var count;
-        this._virtualStart += deltaCount;
-        if (this.groups) {
+      if (Math.abs(delta) > this._physicalSize) {
+        if (false) {
+          console.log('random access required but not implemented');
+        } else {
+          var deltaCount = delta / this._physicalAverage;
+          var count;
+          this._virtualStart += deltaCount;
+          if (this.groups) {
+          }
+          this._physicalOffset += delta;
+          adjustNeeded = true;
+          delta = 0; // Avoid flipping logic
+          console.log(this._scrollTop, 'random access, new index', this._virtualStart);
         }
-        this._physicalOffset += delta;
-        adjustNeeded = true;
-        delta = 0; // Avoid flipping logic
-        console.log(this._scrollTop, 'random access, new index', this._virtualStart);
       }
 
       // Flip items up or down
@@ -415,15 +419,23 @@ should be done via binding to the `selected` property of each model.
             this._physicalOffset = (this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight);
             adjustNeeded = true;
           }
+          // Ensure the scroller lands exactly at the bottom
+          if (this._virtualStart == this._virtualCount - this._physicalCount) {
+            deltaHeight = this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight;
+            this._target.scrollTop += deltaHeight;
+            this._physicalOffset += deltaHeight;
+            console.log('resetting scroll pos!');
+            adjustNeeded = true;
+          }
           // Flip down
           limit = this._scrollTop - this._physicalOffset - (this._physicalSize - this._target.offsetHeight) * 0.75;
-          // console.log(this._scrollTop, 'limit:', limit);
-          for (i=0; (i<this._physicalCount) && (limit > 0) && (this._virtualStart < this._virtualCount-1); i++) {
+          console.log(this._scrollTop, 'limit:', limit);
+          for (i=0; (i<this._physicalCount) && (limit > 0) && (this._virtualStart < this._virtualCount - this._physicalCount); i++) {
             adjustNeeded = true;
             size = this._physicalSizes[i] || this._physicalAverage;
             this._physicalOffset += size;
             limit -= size;
-            // console.log(this._scrollTop, 'flip down', this._virtualStart, size, limit);
+            console.log(this._scrollTop, 'flip down', this._virtualStart, size, limit);
             this.changeIndex(+1);
           }
         } else if (delta < 0) {
@@ -434,24 +446,23 @@ should be done via binding to the `selected` property of each model.
             adjustNeeded = true;
           }
           // Ensure the scroller lands back at the top
-          if (this._virtualStart === 0 && this._physicalOffset !== 0) {
+          if (this._virtualStart === 0) {
             deltaHeight = this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight;
             this._target.scrollTop -= deltaHeight;
             this._physicalOffset += deltaHeight;
             console.log('resetting scroll pos!');
             adjustNeeded = true;
-          } else {
-            // Flip up
-            limit = (this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight) - this._scrollTop + (this._physicalSize - this._target.offsetHeight) * 0.25;
-            // console.log(this._scrollTop, 'limit:', limit);
-            for (i=this._physicalCount-1; (i >= 0) && (limit > 0) && (this._virtualStart > 0); i--) {
-              adjustNeeded = true;
-              size = this._physicalSizes[i] || this._physicalAverage;
-              this._physicalOffset += size;
-              limit -= size;
-              // console.log(this._scrollTop, 'flip up at', this._virtualStart, size, limit);
-              this.changeIndex(-1);
-            }
+          }
+          // Flip up
+          limit = (this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight) - this._scrollTop + (this._physicalSize - this._target.offsetHeight) * 0.25;
+          console.log(this._scrollTop, 'limit:', limit);
+          for (i=this._physicalCount-1; (i >= 0) && (limit > 0) && (this._virtualStart > 0); i--) {
+            adjustNeeded = true;
+            size = this._physicalSizes[i] || this._physicalAverage;
+            this._physicalOffset += size;
+            limit -= size;
+            console.log(this._scrollTop, 'flip up at', this._virtualStart, size, limit);
+            this.changeIndex(-1);
           }
         }
       }
