@@ -59,7 +59,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       color: gray;
       z-index:-1;
       text-align: right;
-      font-size: 2em;
     }
     .divider {
       background: black;
@@ -73,12 +72,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <div style="position: absolute; top:{{$.list.offsetTop}}px; left:{{$.list.offsetLeft}}px; width:{{$.list.offsetWidth}}px; height:{{$.list.offsetHeight}}px">
     <template repeat="{{$.list._physicalItems}}">
       <div class="marker" style="top:{{offsetTop-parentNode.scrollTop+parentNode.$.page.offsetTop}}px; left:{{offsetLeft}}px; width:{{offsetWidth}}px; height:{{offsetHeight}}px">
-        V: {{templateInstance.model.index}}, P: {{templateInstance.model.physicalIndex}}
+        Group: {{templateInstance.model.groupIndex}}
+        Index: {{templateInstance.model.index}}
+        Phys: {{templateInstance.model.physicalIndex}}
       </div>
     </template>
   </div>
 
-  <core-ajax url="demo-data-grouped-short.json" response="{{data}}" auto></core-ajax>
+  <div style="position: absolute; top: 10px; right: 10px; width: 200px;">
+    <div style="width: 1000px;">
+      _virtualCount: {{$.list._virtualCount}} <br>
+      _physicalCount: {{$.list._physicalCount}} <br>
+      _flatGroups: {{$.list._flatGroups}} <br>
+      <br>
+      _virtualStart: {{$.list._virtualStart}} <br>
+      _groupStart: {{$.list._groupStart}} <br>
+      _groupStartIndex: {{$.list._groupStartIndex}} <br>
+      <br>
+      _scrollTop: {{$.list._scrollTop}} <br>
+      _physicalSize: {{$.list._physicalSize}} <br>
+      _pagePosBasis: {{$.list._pagePosBasis}} <br>
+      _physicalOffset: {{$.list._physicalOffset}} <br>
+      _pageTop: {{$.list._pageTop}} <br>
+      _pageBottom: {{$.list._pageBottom}} <br>
+    </div>
+  </div>
+
+  <core-ajax url="demo-data-short.json" response="{{data}}" auto></core-ajax>
 
   <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" height="80" extraItems="2">
     <template>

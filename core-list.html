@@ -355,9 +355,9 @@ should be done via binding to the `selected` property of each model.
       this._virtualStart += inc;
       if (this.groups) {
         while (inc > 0) {
-          var groupMax = this.getGroupLen() - this._groupStartIndex;
+          var groupMax = this.getGroupLen() - this._groupStartIndex - 1;
           if (inc > groupMax) {
-            inc -= groupMax;
+            inc -= (groupMax + 1);
             this._groupStart++;
             this._groupStartIndex = 0;
           } else {
@@ -395,19 +395,14 @@ should be done via binding to the `selected` property of each model.
 
       // Random access to point in list
       if (Math.abs(delta) > this._physicalSize) {
-        if (false) {
-          console.log('random access required but not implemented');
-        } else {
-          var deltaCount = delta / this._physicalAverage;
-          var count;
-          this._virtualStart += deltaCount;
-          if (this.groups) {
-          }
-          this._physicalOffset += delta;
-          adjustNeeded = true;
-          delta = 0; // Avoid flipping logic
-          console.log(this._scrollTop, 'random access, new index', this._virtualStart);
-        }
+        var deltaCount = Math.round(delta / this._physicalAverage);
+        deltaCount = Math.min(deltaCount, this._virtualCount - this._virtualStart - 1);
+        deltaCount = Math.max(deltaCount, -this._virtualStart);
+        this.changeIndex(deltaCount);
+        this._physicalOffset += Math.abs(delta);
+        adjustNeeded = true;
+        delta = 0; // Avoid flipping logic
+        console.log(this._scrollTop, 'random access, new index', this._virtualStart);
       }
 
       // Flip items up or down
@@ -423,13 +418,14 @@ should be done via binding to the `selected` property of each model.
           if (this._virtualStart == this._virtualCount - this._physicalCount) {
             deltaHeight = this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight;
             this._target.scrollTop += deltaHeight;
+            this._scrollTop = this._target.scrollTop;
             this._physicalOffset += deltaHeight;
             console.log('resetting scroll pos!');
             adjustNeeded = true;
           }
           // Flip down
           limit = this._scrollTop - this._physicalOffset - (this._physicalSize - this._target.offsetHeight) * 0.75;
-          console.log(this._scrollTop, 'limit:', limit);
+          // console.log(this._scrollTop, 'limit:', limit);
           for (i=0; (i<this._physicalCount) && (limit > 0) && (this._virtualStart < this._virtualCount - this._physicalCount); i++) {
             adjustNeeded = true;
             size = this._physicalSizes[i] || this._physicalAverage;
@@ -455,7 +451,7 @@ should be done via binding to the `selected` property of each model.
           }
           // Flip up
           limit = (this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight) - this._scrollTop + (this._physicalSize - this._target.offsetHeight) * 0.25;
-          console.log(this._scrollTop, 'limit:', limit);
+          // console.log(this._scrollTop, 'limit:', limit);
           for (i=this._physicalCount-1; (i >= 0) && (limit > 0) && (this._virtualStart > 0); i--) {
             adjustNeeded = true;
             size = this._physicalSizes[i] || this._physicalAverage;
