@@ -182,7 +182,7 @@ should be done via binding to the `selected` property of each model.
       this._physicalSize = 0;
       this._physicalSizes = [];
 
-      this._flatGroups = false;
+      this._nestedGroups = false;
       this._groupStart = 0;
       this._groupStartIndex = 0;
     },
@@ -207,6 +207,16 @@ should be done via binding to the `selected` property of each model.
       this._oldSelectionEnabled = this.selectionEnabled;
     },
 
+    _updateSelection: function(splices) {
+      for (var i=0; i<splices.length; i++) {
+        var s = splices[i];
+        for (var j=0; j<s.removed.length; j++) {
+          var d = s.removed[j];
+          this.$.selection.setItemSelected(d, false);
+        }
+      }
+    },
+
     // TODO(sorvell): it'd be nice to dispense with 'data' and just use 
     // template repeat's model. However, we need tighter integration
     // with TemplateBinding for this.
@@ -217,15 +227,10 @@ should be done via binding to the `selected` property of each model.
 
       // TODO(kschaaf): This is currently the only way to know that the array
       // was mutated as opposed to newly assigned; to be updated with better API
+      var splices;
       if (arguments.length == 1) {
-        var splices = arguments[0];
-        for (var i=0; i<splices.length; i++) {
-          var s = splices[i];
-          for (var j=0; j<s.removed.length; j++) {
-            var d = s.removed[j];
-            this.$.selection.setItemSelected(d, false);
-          }
-        }
+        splices = arguments[0];
+        this._updateSelection(splices, false);
       } else {
         this._clearSelection();
       }
@@ -239,32 +244,88 @@ should be done via binding to the `selected` property of each model.
         this._target.addEventListener('scroll', this._boundScrollHandler, false);
       }
 
-      this.initializeData();
+      this.initializeData(splices, false);
     },
 
-    initializeData: function() {
+    updateGroupObservers: function(splices) {
+      // If we're going from grouped to non-grouped, remove all observers
+      if (!this._nestedGroups && this._groupObservers && this._groupObservers.length) {
+        splices = [{
+          index: 0,
+          addedCount: 0,
+          removed: this._groupObservers
+        }];
+      }
+      // Otherwise, create observers for all groups, unless this is a group splice
+      if (this._nestedGroups) {
+        splices = splices || [{
+          index: 0,
+          addedCount: this.data.length,
+          removed: []
+        }];
+      }
+      if (splices) {
+        var observers = this._groupObservers || [];
+        // Apply the splices to the observer array
+        for (var i=0; i<splices.length; i++) {
+          var s = splices[i], j;
+          var args = [s.index, s.removed.length];
+          if (s.removed.length) {
+            for (j=s.index; j<s.removed.length; j++) {
+              observers[j].close();
+            }
+          }
+          if (s.addedCount) {
+            for (j=s.index; j<s.addedCount; j++) {
+              var o = new ArrayObserver(this.data[j]);
+              args.push(o);
+              o.open(this.getGroupDataHandler(j));
+            }
+          }
+          observers.splice.apply(observers, args);
+        }
+        this._groupObservers = observers;
+      }
+    },
+
+    getGroupDataHandler: function(group) {
+      return function(splices) {
+        this.groupDataChanged(group, splices);
+      }.bind(this);
+    },
+
+    groupDataChanged: function(group, splices) {
+      console.log('groupDataChanged', group, splices);
+      this._updateSelection(splices);
+      this.initializeData(null, true);
+    },
+
+    initializeData: function(splices, groupUpdate) {
       // Count virtual data size, depending on whether grouping is enabled
       if (!this.data) {        
         this._virtualCount = 0;
+        this._nestedGroups = false;
       } else if (this.groups) {
-        // if (this.stickyDivider) {
-        //   this.stickyDivider.remove();
-        // }
-        // this.stickyDivider = list.appendChild(document.importNode(this.template.ref_.content.querySelector('[divider]')));
-        // if (this.stickyDivider) {
-        //   this.stickyDivider.style.position = 'absolute';
-        // }
-        this._flatGroups = !Array.isArray(this.data[0]);
-        if (this._flatGroups) {
-          this._virtualCount = this.data.length;
-        } else {
+        this._nestedGroups = Array.isArray(this.data[0]);
+        if (this._nestedGroups) {
+          if (this.groups.length != this.data.length) {
+            throw 'When using nested grouped data, data.length and groups.length must agree!';
+          }
           this._virtualCount = 0;
           for (var i=0; i<this.groups.length; i++) {
             this._virtualCount += this.data[i] && this.data[i].length;
           }
+        } else {
+          this._virtualCount = this.data.length;
         }
       } else {
+        this._nestedGroups = false;
         this._virtualCount = this.data.length;
+      }
+
+      // Update grouped array observers used when group data is nested
+      if (!groupUpdate) {
+        this.updateGroupObservers(splices);
       }
       
       // Add physical items up to a max based on data length, viewport size, and extra item overhang
@@ -281,6 +342,7 @@ should be done via binding to the `selected` property of each model.
       this.template.model = this._physicalData;
       this.template.setAttribute('repeat', '');
       if (needItemInit) {
+        this.resetMetrics();
         this.onMutation(this, this.initializeItems);
       } else {
         this.refresh(true);
@@ -296,6 +358,9 @@ should be done via binding to the `selected` property of each model.
         this._physicalItems[i] = item;
         item._transformValue = 0;
       }
+      // Flag to refresh, since we'll need one additional refresh after data is
+      // populated to determine correct metrics
+      this._itemInitRefresh = true;
       this.refresh(true);
     },
 
@@ -308,16 +373,16 @@ should be done via binding to the `selected` property of each model.
         physicalDatum.isDivider = null;
         physicalDatum.groupModel = null;
       } else {
-        virtualDatum = this.data && this._flatGroups ? this.data[virtualIndex] : this.data[groupIndex][groupItemIndex];
+        virtualDatum = this.data && this._nestedGroups ? this.data[groupIndex][groupItemIndex] : this.data[virtualIndex];
         physicalDatum.groupIndex = groupIndex;
         physicalDatum.isDivider = (groupItemIndex === 0);
         var groupModel = this.groups[groupIndex];
-        physicalDatum.groupModel = this._flatGroups ? groupModel.data : groupModel;
+        physicalDatum.groupModel = this._nestedGroups ? groupModel : groupModel.data;
       }
       physicalDatum.model = virtualDatum;
-      physicalDatum.index = this.groups && !this._flatGroups ? groupItemIndex : virtualIndex;
+      physicalDatum.index = virtualIndex;
       physicalDatum.groupIndex = this.groups ? groupIndex : null;
-      physicalDatum.groupItemIndex = groupItemIndex;
+      physicalDatum.groupItemIndex = this.groups ? groupItemIndex : null;
       physicalDatum.physicalIndex = physicalIndex;
       physicalDatum.selected = this.selectionEnabled && virtualDatum ? 
           this._selectedData.get(virtualDatum) : null;
@@ -332,22 +397,40 @@ should be done via binding to the `selected` property of each model.
       this.refresh(false, this._scrollTop - lastScrollTop);
     },
 
-    updateMetrics: function() {
-      var totalSize = 0;
-      for (var i=0; i<this._physicalCount; i++) {
-        var size = this._physicalSizes[i] = this._physicalItems[i].offsetHeight;
-        totalSize += size;
+    resetMetrics: function() {
+      this._metricsInvalidated = true;
+      this._physicalAverage = 0;
+      this._physicalAverageCount = 0;
+    },
+
+    updateMetrics: function(force) {
+      if (force || this._metricsInvalidated) {
+        var totalSize = 0;
+        var count = 0;
+        for (var i=0; i<this._physicalCount; i++) {
+          var item = this._physicalItems[i];
+          var size = this._physicalSizes[i] = item.offsetHeight;
+          if (!item.hidden) {
+            count++;
+            totalSize += size;
+          }
+        }
+        this._physicalSize = totalSize;
+        
+        totalSize = (this._physicalAverage * this._physicalAverageCount) + totalSize;
+        this._physicalAverageCount += count;
+        this._physicalAverage = totalSize / this._physicalAverageCount;
+
+        this._metricsInvalidated = false;
       }
-      this._physicalSize = totalSize;
-      this._physicalAverage = totalSize / this._physicalCount;
     },
 
     getGroupLen: function(group) {
       group = arguments.length ? group : this._groupStart;
-      if (this._flatGroups) {
-        return this.groups[group].length;
-      } else {
+      if (this._nestedGroups) {
         return this.data[group].length;
+      } else {
+        return this.groups[group].length;
       }
     },
 
@@ -378,57 +461,135 @@ should be done via binding to the `selected` property of each model.
       }
     },
 
+    groupForVirtualIndex: function(virtual) {
+      if (!this.groups) {
+        return {};
+      } else {
+        var group;
+        for (group=0; group<this.groups.length; group++) {
+          var groupLen = this.getGroupLen(group);
+          if (groupLen > virtual) {
+            break;
+          } else {
+            virtual -= groupLen;
+          }
+        }
+        return {group: group, groupIndex: virtual };
+      }
+    },
+
+    virtualIndexForGroup: function(group, groupIndex) {
+      group--;
+      while (group >= 0) {
+        groupIndex += this.getGroupLen(group--);
+      }
+      return groupIndex;
+    },
+
+    dataForIndex: function(virtual, group, groupIndex) {
+      if (this._nestedGroups) {
+        return this.data[group][groupIndex];
+      } else {
+        return this.data[virtual];
+      }
+    },
+
+    setPageBias: function(bias) {
+      if (this._pagePosBasis != bias) {
+        this._pagePosBasis = bias;
+        this._physicalOffset = (this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight);
+        return true;
+      }
+    },
+
     /**
      * Refresh the list at the current scroll position.
      *
      * @method refresh
      */
     refresh: function(force, delta) {
-
       if (!this.data) {
         return;
       }
 
-      var i, size, limit, adjustNeeded, groupLen, deltaHeight;
+      var i, size, limit, adjustData, adjustViewport, groupLen, deltaHeight;
 
       this.updateMetrics(force);
 
       // Random access to point in list
-      if (Math.abs(delta) > this._physicalSize) {
-        var deltaCount = Math.round(delta / this._physicalAverage);
-        deltaCount = Math.min(deltaCount, this._virtualCount - this._virtualStart - 1);
-        deltaCount = Math.max(deltaCount, -this._virtualStart);
+      if (Math.abs(delta) > this._physicalSize || this._scrollToIndex != null) {
+        var deltaCount;
+        if (this._scrollToIndex != null) {
+          // Scrolling to specific index is a special case of random access
+          if (this._scrollToIndex > this._virtualCount - (this._target.offsetHeight / this._physicalAverage)) {
+            // Index near bottom requires bottom offset and guestimate virtual start
+            this.setPageBias('bottom');
+            this._target.scrollTop = this._viewportHeight - this._target.offsetHeight;
+            this._scrollTop = this._target.scrollTop;
+            this._physicalOffset = 0;
+            deltaCount = this._virtualCount - Math.round(this._physicalSize / this._physicalAverage) - this._virtualStart;
+          } else {
+            this.setPageBias('top');
+            this._target.scrollTop = this._scrollToIndex * this._physicalAverage;
+            this._scrollTop = this._target.scrollTop;
+            this._physicalOffset = this._scrollTop;
+            deltaCount = this._scrollToIndex - this._virtualStart;
+          }
+          this._scrollToIndex = null;
+        } else if (this._scrollTop < this._physicalAverage * this._physicalCount / 3) {
+          // Jumping to top-ish of list
+          deltaCount = -this._virtualStart;
+          this.setPageBias('top');
+          this._physRicalOffset = 0;
+        } else if (this._scrollTop > this._viewportHeight - this._physicalAverage * this._physicalCount  / 3) {
+          // Jumping to bottom-ish of list
+          deltaCount = this._virtualCount - this._physicalCount - this._virtualStart;
+          this.setPageBias('bottom');
+          this._physicalOffset = 0;
+        } else {
+          // Jumping somewhere in the middle
+          deltaCount = Math.round(delta / this._physicalAverage);
+          deltaCount = Math.min(deltaCount, this._virtualCount - this._virtualStart - 1);
+          deltaCount = Math.max(deltaCount, -this._virtualStart);
+          this.setPageBias('top');
+          this._physicalOffset += delta;
+        }
         this.changeIndex(deltaCount);
-        this._physicalOffset += Math.abs(delta);
-        adjustNeeded = true;
+        adjustViewport = true;
+        adjustData = true;
         delta = 0; // Avoid flipping logic
         console.log(this._scrollTop, 'random access, new index', this._virtualStart);
+        requestAnimationFrame(function() {
+          this.updateMetrics(true);
+        }.bind(this));
       }
 
       // Flip items up or down
       if (this._physicalSize > this._target.offsetHeight) {
         if (delta > 0) {
           // Scrolling down; Flip page positioning basis if needed
-          if (this._pagePosBasis != 'top') {
-            this._pagePosBasis = 'top';
-            this._physicalOffset = (this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight);
-            adjustNeeded = true;
+          if (this.setPageBias('top')) {
+            adjustViewport = true;
           }
-          // Ensure the scroller lands exactly at the bottom
-          if (this._virtualStart == this._virtualCount - this._physicalCount) {
-            deltaHeight = this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight;
+          // Adjust scroll position
+          deltaHeight = this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight;
+          if (this._virtualStart < this._virtualCount - this._physicalCount) {
+            deltaHeight = Math.min(deltaHeight - 2 * this._target.offsetHeight, 0);
+          }
+          if (deltaHeight) {
             this._target.scrollTop += deltaHeight;
             this._scrollTop = this._target.scrollTop;
             this._physicalOffset += deltaHeight;
-            console.log('resetting scroll pos!');
-            adjustNeeded = true;
+            console.log('adjusting scroll pos by ' + deltaHeight);
+            adjustViewport = true;
           }
           // Flip down
-          limit = this._scrollTop - this._physicalOffset - (this._physicalSize - this._target.offsetHeight) * 0.75;
+          limit = this._scrollTop - this._physicalOffset - (this._physicalSize - this._target.offsetHeight) * 0.25;
           // console.log(this._scrollTop, 'limit:', limit);
           for (i=0; (i<this._physicalCount) && (limit > 0) && (this._virtualStart < this._virtualCount - this._physicalCount); i++) {
-            adjustNeeded = true;
-            size = this._physicalSizes[i] || this._physicalAverage;
+            adjustViewport = true;
+            adjustData = true;
+            size = this._physicalSizes[i];
             this._physicalOffset += size;
             limit -= size;
             console.log(this._scrollTop, 'flip down', this._virtualStart, size, limit);
@@ -436,25 +597,28 @@ should be done via binding to the `selected` property of each model.
           }
         } else if (delta < 0) {
           // Scrolling up; Flip page positioning basis if needed
-          if (this._pagePosBasis != 'bottom') {
-            this._pagePosBasis = 'bottom';
-            this._physicalOffset = (this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight);
-            adjustNeeded = true;
+          if (this.setPageBias('bottom')) {
+            adjustViewport = true;
           }
-          // Ensure the scroller lands back at the top
-          if (this._virtualStart === 0) {
-            deltaHeight = this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight;
+          // Adjust scroll position
+          deltaHeight = this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight;
+          if (this._virtualStart > this._physicalCount) {
+            deltaHeight = Math.min(deltaHeight - 2 * this._target.offsetHeight, 0);
+          }
+          if (deltaHeight) {
             this._target.scrollTop -= deltaHeight;
+            this._scrollTop = this._target.scrollTop;
             this._physicalOffset += deltaHeight;
-            console.log('resetting scroll pos!');
-            adjustNeeded = true;
+            console.log('adjusting scroll pos by ' + deltaHeight);
+            adjustViewport = true;
           }
           // Flip up
-          limit = (this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight) - this._scrollTop + (this._physicalSize - this._target.offsetHeight) * 0.25;
+          limit = (this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight) - this._scrollTop + (this._physicalSize - this._target.offsetHeight) * 0.75;
           // console.log(this._scrollTop, 'limit:', limit);
           for (i=this._physicalCount-1; (i >= 0) && (limit > 0) && (this._virtualStart > 0); i--) {
-            adjustNeeded = true;
-            size = this._physicalSizes[i] || this._physicalAverage;
+            adjustViewport = true;
+            adjustData = true;
+            size = this._physicalSizes[i];
             this._physicalOffset += size;
             limit -= size;
             console.log(this._scrollTop, 'flip up at', this._virtualStart, size, limit);
@@ -471,14 +635,10 @@ should be done via binding to the `selected` property of each model.
         if (this._pagePosBasis == 'bottom') {
           this._physicalOffset += deltaHeight;
         }
-        adjustNeeded = true;
+        adjustViewport = true;
       }
 
-      // if (this.stickyDivider) {
-      //   this.stickyDivider.style.top = (this._scrollTop - this._physicalOffset) + 'px';
-      // }
-
-      if (adjustNeeded || force) {
+      if (adjustData || force) {
         // Re-assign data
         var group = this.groups && this._groupStart;
         var index = this._groupStartIndex;
@@ -492,6 +652,10 @@ should be done via binding to the `selected` property of each model.
             }
           }
         }
+        this._metricsInvalidated = true;
+      }
+
+      if (adjustViewport || force) {
         // Position page (bindings are used for positioning so offset shift & 
         // data shift happen in same frame on polyfill)
         if (this._pagePosBasis == 'top') {
@@ -501,6 +665,14 @@ should be done via binding to the `selected` property of each model.
           this._pageTop = 'auto';
           this._pageBottom = this._physicalOffset + 'px';
         }
+      }
+
+      if (this._itemInitRefresh) {
+        this._itemInitRefresh = false;
+        requestAnimationFrame(function() {
+          this.resetMetrics();
+          this.refresh(true);
+        }.bind(this));
       }
     },
 
@@ -540,8 +712,8 @@ should be done via binding to the `selected` property of each model.
 
         var model = n.templateInstance && n.templateInstance.model;
         if (model) {
-          var vi = model.index, pi = model.physicalIndex;
-          var data = this.data[vi], item = this._physicalItems[pi];
+          var data = this.dataForIndex(model.index, model.groupIndex, model.groupItemIndex);
+          var item = this._physicalItems[model.physicalIndex];
           this.$.selection.select(data);
           this.asyncFire('core-activate', {data: data, item: item});
         }
@@ -550,12 +722,13 @@ should be done via binding to the `selected` property of each model.
 
     selectedHandler: function(e, detail) {
       this.selection = this.$.selection.getSelection();
-      var i$ = this.indexesForData(detail.item);
+      var id = this.indexesForData(detail.item);
       // TODO(sorvell): we should be relying on selection to store the
       // selected data but we want to optimize for lookup.
       this._selectedData.set(detail.item, detail.isSelected);
-      if (i$.physical >= 0) {
-        this.updateItem(i$.virtual, i$.physical);
+      if (id.physical >= 0 && id.virtual >= 0) {
+        var gd = this.groupForVirtualIndex(id.virtual);
+        this.updateItem(id.physical, gd.group, gd.groupIndex, id.virtual);
       }
     },
 
@@ -590,7 +763,21 @@ should be done via binding to the `selected` property of each model.
     },
 
     indexesForData: function(data) {
-      var virtual = this.data.indexOf(data);
+      var virtual = -1;
+      var groupsLen = 0;
+      if (this._nestedGroups) {
+        for (var i=0; i<this.groups.length; i++) {
+          virtual = this.data[i].indexOf(data);
+          if (virtual < 0) {
+            groupsLen += this.data[i].length;
+          } else {
+            virtual += groupsLen;
+            break;
+          }
+        }
+      } else {
+        virtual = this.data.indexOf(data);
+      }
       var physical = this.virtualToPhysicalIndex(virtual);
       return { virtual: virtual, physical: physical };
     },
@@ -620,8 +807,23 @@ should be done via binding to the `selected` property of each model.
       this.selection = this.$.selection.getSelection();
     },
 
-    scrollToItem: function(index) {
-      this.scrollTop = index * this.height;
+    scrollToIndex: function(group, index) {
+      if (arguments.length == 2) {
+        index = this.virtualIndexForGroup(group, index);
+      } else {
+        index = group;
+      }
+      this._scrollToIndex = index;
+      this.refresh(true);
+      console.log('scroll from ' + this._scrollTop + ' to ' + this._target.scrollTop);
+    },
+
+    scrollToGroup: function(group) {
+      var index = 0;
+      for (var i=0; i<group; i++) {
+        index += this.getGroupLen(i);
+      }
+      this.scrollToIndex(index);
     }
 
   });

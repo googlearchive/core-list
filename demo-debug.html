@@ -71,7 +71,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   <div style="position: absolute; top:{{$.list.offsetTop}}px; left:{{$.list.offsetLeft}}px; width:{{$.list.offsetWidth}}px; height:{{$.list.offsetHeight}}px">
     <template repeat="{{$.list._physicalItems}}">
-      <div class="marker" style="top:{{offsetTop-parentNode.scrollTop+parentNode.$.page.offsetTop}}px; left:{{offsetLeft}}px; width:{{offsetWidth}}px; height:{{offsetHeight}}px">
+      <div class="marker" style="top:{{offsetTop-parentNode.scrollTop+parentNode.$.page.offsetTop}}px; left:{{offsetLeft}}px; width:{{offsetWidth}}px; height:{{offsetHeight}}px" hidden?="{{hidden}}">
         Group: {{templateInstance.model.groupIndex}}
         Index: {{templateInstance.model.index}}
         Phys: {{templateInstance.model.physicalIndex}}
@@ -89,8 +89,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _groupStart: {{$.list._groupStart}} <br>
       _groupStartIndex: {{$.list._groupStartIndex}} <br>
       <br>
-      _scrollTop: {{$.list._scrollTop}} <br>
       _physicalSize: {{$.list._physicalSize}} <br>
+      _physicalAverage: {{$.list._physicalAverage}} <br>
+      _viewportHeight: {{$.list._viewportHeight}} <br>
+      <br>
+      _scrollTop: {{$.list._scrollTop}} <br>
       _pagePosBasis: {{$.list._pagePosBasis}} <br>
       _physicalOffset: {{$.list._physicalOffset}} <br>
       _pageTop: {{$.list._pageTop}} <br>
@@ -98,9 +101,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </div>
   </div>
 
-  <core-ajax url="demo-data-short.json" response="{{data}}" auto></core-ajax>
+  <core-ajax url="demo-data-grouped-short.json" response="{{data}}" auto></core-ajax>
 
-  <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" height="80" extraItems="2">
+  <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" height="80" extraItems="20">
     <template>
       <div>
         <div class="divider" divider>

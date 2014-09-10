@@ -19,6 +19,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       margin: 0;
       -webkit-tap-highlight-color: transparent;
       overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
     }
     
     list-test {
@@ -46,6 +48,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       height: 50px;
       width: 50px;
     }
+    .selected {
+      background: yellow;
+    }
     .body {
       font-size: 12px;
     }
@@ -61,6 +66,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       padding: 5px;
       font-size: 3em;
     }
+    .super-scroll {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      bottom: 16px;
+      background: orange;
+      color: white;
+      border-radius: 8px;
+    }
+    .super-scroll {
+      padding: 5px 10px;
+    }    
 
   </style>
 
@@ -72,9 +89,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         <div class="divider" divider>
           {{groupModel.letter}}
         </div>
-        <div class="item">
+        <div class="item {{selected ? 'selected' : ''}}">
           <img src="{{model.image}}">
-          <span>Index: {{index}}</span>
+          <span>Index: {{index}}, </span>
+          <span>Group: {{groupIndex}}, </span>
+          <span>Index in group: {{groupItemIndex}}</span>
           <br>
           <select selectedIndex="{{model.selectValue}}"><option>a</option><option>b</option><option>c</option></select>
           <input type="checkbox" checked="{{model.checked}}">
@@ -85,6 +104,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </template>
   </core-list>
 
+  <div class="super-scroll" layout vertical center>
+    <template repeat="{{group, idx in data.groups}}">
+      <div flex layout vertical center-justified on-down="{{overLetter}}" on-track="{{overLetter}}">{{group.letter}}</div>
+    </template>
+  </div>
+
 </template>
 <script>
 (function() {
@@ -92,6 +117,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer('list-test', {
     ready: function() {
       window.list = this.$.list;
+    },
+    overLetter: function(e) {
+      var target = PolymerGestures.targetFinding.findTarget({clientX: e.clientX, clientY: e.clientY});
+      var idx = target && target.templateInstance && target.templateInstance.model && target.templateInstance.model.idx;
+      if (idx != null) {
+        list.scrollToGroup(idx);
+      }
     }
   });
 })();  
