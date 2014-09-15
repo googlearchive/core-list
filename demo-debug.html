@@ -11,6 +11,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <head>
   <title>core-list</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <script>Object.observe = null;</script>
   <script src="../platform/platform.js"></script>
   <link rel="import" href="core-list.html">
   <link rel="import" href="../core-ajax/core-ajax.html">
@@ -46,7 +47,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     core-list {
       height: 30%;
       width: 50%;
-      border: 3px solid black;
+      border: 1px solid rgba(0,0,0,0.3);
     }
     .item > img {
       height: 50px;
@@ -60,6 +61,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       z-index:-1;
       text-align: right;
     }
+    .marker.viewport {
+      border: 1px dashed red;
+    }
+    .marker.page {
+      border: 1px dashed blue;
+    }
     .divider {
       background: black;
       color: white;
@@ -70,6 +77,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   </style>
 
   <div style="position: absolute; top:{{$.list.offsetTop}}px; left:{{$.list.offsetLeft}}px; width:{{$.list.offsetWidth}}px; height:{{$.list.offsetHeight}}px">
+    <div class="marker viewport" style="top:{{-$.list.scrollTop}}px; height:{{$.list.$.viewport.offsetHeight}}px; width:{{$.list.$.viewport.offsetWidth}}px;"></div>
+    <div class="marker page" style="top:{{$.list.$.page.offsetTop-$.list.scrollTop}}px; height:{{$.list.$.page.offsetHeight}}px; width:{{$.list.$.page.offsetWidth}}px;"></div>
     <template repeat="{{$.list._physicalItems}}">
       <div class="marker" style="top:{{offsetTop-parentNode.scrollTop+parentNode.$.page.offsetTop}}px; left:{{offsetLeft}}px; width:{{offsetWidth}}px; height:{{offsetHeight}}px" hidden?="{{hidden}}">
         Group: {{templateInstance.model.groupIndex}}
@@ -103,7 +112,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   <core-ajax url="demo-data-grouped-short.json" response="{{data}}" auto></core-ajax>
 
-  <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" height="80" extraItems="20">
+  <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" height="80" extraItems="2">
     <template>
       <div>
         <div class="divider" divider>

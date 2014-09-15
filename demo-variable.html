@@ -11,6 +11,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <head>
   <title>core-list</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <script>Object.observe = null;</script>
   <script src="../platform/platform.js"></script>
   <link rel="import" href="core-list.html">
   <link rel="import" href="../core-ajax/core-ajax.html">
@@ -90,15 +91,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           {{groupModel.letter}}
         </div>
         <div class="item {{selected ? 'selected' : ''}}">
-          <img src="{{model.image}}">
+          <img id="image" src="{{model.image}}">
           <span>Index: {{index}}, </span>
           <span>Group: {{groupIndex}}, </span>
           <span>Index in group: {{groupItemIndex}}</span>
           <br>
-          <select selectedIndex="{{model.selectValue}}"><option>a</option><option>b</option><option>c</option></select>
-          <input type="checkbox" checked="{{model.checked}}">
-          <input value="{{model.name}}">
-          <div class="text">{{model.text}}</div>
+          <span id="select" selectedIndex="{{model.selectValue}}">Selected Index: {{model.selectValue}}</span> | 
+          <span id="checkbox" checked="{{model.checked}}">Checked: {{model.checked}} </span> | 
+          <span id="input" value="{{model.name}}">Input: {{model.name}}</span>
+          <div class="text" id="text">{{model.text}}</div>
         </div>
       </div>
     </template>

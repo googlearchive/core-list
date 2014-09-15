@@ -185,6 +185,12 @@ should be done via binding to the `selected` property of each model.
       this._nestedGroups = false;
       this._groupStart = 0;
       this._groupStartIndex = 0;
+
+      // Only use -webkit-overflow-touch from iOS8+, where scroll events are fired
+      var ios = navigator.userAgent.match(/iP(?:hone|ad;(?: U;)? CPU) OS (\d+)/);
+      if (ios && ios[1] >= 8) {
+        this.style.webkitOverflowScrolling = 'touch';
+      }
     },
 
     attached: function() {
@@ -242,6 +248,17 @@ should be done via binding to the `selected` property of each model.
         }
         this._target = target;
         this._target.addEventListener('scroll', this._boundScrollHandler, false);
+        if ((target != this) && target.setScrollTop && target.getScrollTop) {
+          this.setScrollTop = function(val) {
+            target.setScrollTop(val);
+            return target.getScrollTop();
+          };
+        } else {
+          this.setScrollTop = function(val) {
+            target.scrollTop = val;
+            return target.scrollTop;
+          };
+        }
       }
 
       this.initializeData(splices, false);
@@ -295,7 +312,6 @@ should be done via binding to the `selected` property of each model.
     },
 
     groupDataChanged: function(group, splices) {
-      console.log('groupDataChanged', group, splices);
       this._updateSelection(splices);
       this.initializeData(null, true);
     },
@@ -394,35 +410,33 @@ should be done via binding to the `selected` property of each model.
     scrollHandler: function(e, detail) {
       var lastScrollTop = this._scrollTop;
       this._scrollTop = e.detail ? e.detail.target.scrollTop : e.target.scrollTop;
-      this.refresh(false, this._scrollTop - lastScrollTop);
+      var delta = this._scrollTop - lastScrollTop;
+      // console.log('delta', lastScrollTop, this._scrollTop, delta);
+      this.refresh(false, delta);
     },
 
     resetMetrics: function() {
-      this._metricsInvalidated = true;
       this._physicalAverage = 0;
       this._physicalAverageCount = 0;
     },
 
     updateMetrics: function(force) {
-      if (force || this._metricsInvalidated) {
-        var totalSize = 0;
-        var count = 0;
-        for (var i=0; i<this._physicalCount; i++) {
-          var item = this._physicalItems[i];
-          var size = this._physicalSizes[i] = item.offsetHeight;
-          if (!item.hidden) {
-            count++;
-            totalSize += size;
-          }
+      var totalSize = 0;
+      var count = 0;
+      for (var i=0; i<this._physicalCount; i++) {
+        var item = this._physicalItems[i];
+        var size = this._physicalSizes[i] = item.offsetHeight;
+        if (!item.hidden) {
+          count++;
+          totalSize += size;
         }
-        this._physicalSize = totalSize;
-        
-        totalSize = (this._physicalAverage * this._physicalAverageCount) + totalSize;
-        this._physicalAverageCount += count;
-        this._physicalAverage = totalSize / this._physicalAverageCount;
-
-        this._metricsInvalidated = false;
       }
+      this._viewportHeight = this.$.viewport.offsetHeight;
+      this._physicalSize = this.$.page.offsetHeight;
+      
+      totalSize = (this._physicalAverage * this._physicalAverageCount) + totalSize;
+      this._physicalAverageCount += count;
+      this._physicalAverage = Math.round(totalSize / this._physicalAverageCount);
     },
 
     getGroupLen: function(group) {
@@ -497,7 +511,7 @@ should be done via binding to the `selected` property of each model.
     setPageBias: function(bias) {
       if (this._pagePosBasis != bias) {
         this._pagePosBasis = bias;
-        this._physicalOffset = (this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight);
+        this._physicalOffset = (this._viewportHeight - this._physicalOffset - this._physicalSize);
         return true;
       }
     },
@@ -524,14 +538,12 @@ should be done via binding to the `selected` property of each model.
           if (this._scrollToIndex > this._virtualCount - (this._target.offsetHeight / this._physicalAverage)) {
             // Index near bottom requires bottom offset and guestimate virtual start
             this.setPageBias('bottom');
-            this._target.scrollTop = this._viewportHeight - this._target.offsetHeight;
-            this._scrollTop = this._target.scrollTop;
+            this._scrollTop = this.setScrollTop(this._viewportHeight - this._target.offsetHeight);
             this._physicalOffset = 0;
             deltaCount = this._virtualCount - Math.round(this._physicalSize / this._physicalAverage) - this._virtualStart;
           } else {
             this.setPageBias('top');
-            this._target.scrollTop = this._scrollToIndex * this._physicalAverage;
-            this._scrollTop = this._target.scrollTop;
+            this._scrollTop = this.setScrollTop(this._scrollToIndex * this._physicalAverage);
             this._physicalOffset = this._scrollTop;
             deltaCount = this._scrollToIndex - this._virtualStart;
           }
@@ -572,13 +584,9 @@ should be done via binding to the `selected` property of each model.
             adjustViewport = true;
           }
           // Adjust scroll position
-          deltaHeight = this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight;
-          if (this._virtualStart < this._virtualCount - this._physicalCount) {
-            deltaHeight = Math.min(deltaHeight - 2 * this._target.offsetHeight, 0);
-          }
-          if (deltaHeight) {
-            this._target.scrollTop += deltaHeight;
-            this._scrollTop = this._target.scrollTop;
+          deltaHeight = Math.round(this._viewportHeight - this._physicalOffset - this._physicalSize);
+          if (deltaHeight && this._virtualStart == (this._virtualCount - this._physicalCount)) {
+            this._scrollTop = this.setScrollTop(this._scrollTop + deltaHeight);
             this._physicalOffset += deltaHeight;
             console.log('adjusting scroll pos by ' + deltaHeight);
             adjustViewport = true;
@@ -592,7 +600,7 @@ should be done via binding to the `selected` property of each model.
             size = this._physicalSizes[i];
             this._physicalOffset += size;
             limit -= size;
-            console.log(this._scrollTop, 'flip down', this._virtualStart, size, limit);
+            console.log(this._scrollTop, delta, 'flip down', this._virtualStart, size, limit);
             this.changeIndex(+1);
           }
         } else if (delta < 0) {
@@ -601,19 +609,15 @@ should be done via binding to the `selected` property of each model.
             adjustViewport = true;
           }
           // Adjust scroll position
-          deltaHeight = this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight;
-          if (this._virtualStart > this._physicalCount) {
-            deltaHeight = Math.min(deltaHeight - 2 * this._target.offsetHeight, 0);
-          }
-          if (deltaHeight) {
-            this._target.scrollTop -= deltaHeight;
-            this._scrollTop = this._target.scrollTop;
+          deltaHeight = Math.round(this._viewportHeight - this._physicalOffset - this._physicalSize);
+          if (deltaHeight && (this._virtualStart === 0)) {
+            this._scrollTop = this.setScrollTop(this._scrollTop - deltaHeight);
             this._physicalOffset += deltaHeight;
-            console.log('adjusting scroll pos by ' + deltaHeight);
+            console.log(this._scrollTop, 'adjusting scroll pos by ' + deltaHeight);
             adjustViewport = true;
           }
           // Flip up
-          limit = (this._viewportHeight - this._physicalOffset - this.$.page.offsetHeight) - this._scrollTop + (this._physicalSize - this._target.offsetHeight) * 0.75;
+          limit = (this._viewportHeight - this._physicalOffset - this._physicalSize) - this._scrollTop + (this._physicalSize - this._target.offsetHeight) * 0.75;
           // console.log(this._scrollTop, 'limit:', limit);
           for (i=this._physicalCount-1; (i >= 0) && (limit > 0) && (this._virtualStart > 0); i--) {
             adjustViewport = true;
@@ -621,7 +625,7 @@ should be done via binding to the `selected` property of each model.
             size = this._physicalSizes[i];
             this._physicalOffset += size;
             limit -= size;
-            console.log(this._scrollTop, 'flip up at', this._virtualStart, size, limit);
+            console.log(this._scrollTop, delta, 'flip up', this._virtualStart, size, limit);
             this.changeIndex(-1);
           }
         }
@@ -652,12 +656,10 @@ should be done via binding to the `selected` property of each model.
             }
           }
         }
-        this._metricsInvalidated = true;
       }
 
       if (adjustViewport || force) {
-        // Position page (bindings are used for positioning so offset shift & 
-        // data shift happen in same frame on polyfill)
+        // Position page 
         if (this._pagePosBasis == 'top') {
           this._pageTop = this._physicalOffset + 'px';
           this._pageBottom = 'auto';
@@ -674,6 +676,7 @@ should be done via binding to the `selected` property of each model.
           this.refresh(true);
         }.bind(this));
       }
+      Platform.flush();
     },
 
     // list selection

@@ -1,8 +1,7 @@
 :host {
   display: block;
   overflow: auto;
-  /*-webkit-overflow-scrolling: touch;
-  -webkit-transform: translateZ(0);
+  /*-webkit-transform: translateZ(0);
   transform: translateZ(0);*/
   outline: none;
   position: relative;
