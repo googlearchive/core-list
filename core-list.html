@@ -110,7 +110,8 @@ should be done via binding to the `selected` property of each model.
        * @type number
        * @default 80
        */
-      height: 80,
+      sizingHeight: 150,
+      runwayFactor: 3,
 
       /**
        * 
@@ -346,8 +347,7 @@ should be done via binding to the `selected` property of each model.
       
       // Add physical items up to a max based on data length, viewport size, and extra item overhang
       var currentCount = this._physicalCount || 0;
-      this._visibleCount = Math.ceil(this._target.offsetHeight / this.height);
-      this._physicalCount = Math.min(this._visibleCount + this.extraItems, this._virtualCount);
+      this._physicalCount = Math.min(Math.ceil(this._target.offsetHeight / this.sizingHeight) * this.runwayFactor, this._virtualCount);
       this._physicalCount = Math.max(currentCount, this._physicalCount);
       this._physicalData = this._physicalData || new Array(this._physicalCount);
       var needItemInit = false;
@@ -413,6 +413,15 @@ should be done via binding to the `selected` property of each model.
       var delta = this._scrollTop - lastScrollTop;
       // console.log('delta', lastScrollTop, this._scrollTop, delta);
       this.refresh(false, delta);
+
+      if (this.refreshAsync) {
+        cancelAnimationFrame(this.refreshAsync);
+      }
+      this.refreshAsync = requestAnimationFrame(function() {
+        console.log('refresh async');
+        this.refresh(false, delta > 0 ? 1 : -1);
+        this.refreshAsync = null;
+      }.bind(this));
     },
 
     resetMetrics: function() {
@@ -552,7 +561,7 @@ should be done via binding to the `selected` property of each model.
           // Jumping to top-ish of list
           deltaCount = -this._virtualStart;
           this.setPageBias('top');
-          this._physRicalOffset = 0;
+          this._physicalOffset = 0;
         } else if (this._scrollTop > this._viewportHeight - this._physicalAverage * this._physicalCount  / 3) {
           // Jumping to bottom-ish of list
           deltaCount = this._virtualCount - this._physicalCount - this._virtualStart;
@@ -585,7 +594,11 @@ should be done via binding to the `selected` property of each model.
           }
           // Adjust scroll position
           deltaHeight = Math.round(this._viewportHeight - this._physicalOffset - this._physicalSize);
-          if (deltaHeight && this._virtualStart == (this._virtualCount - this._physicalCount)) {
+          if (this._virtualStart < (this._virtualCount - this._physicalCount)) {
+            // Ensure at least 1 px of scroll headroom if we haven't rendered the top-most items yet
+            deltaHeight = Math.min(deltaHeight-1, 0);
+          }
+          if (deltaHeight) {
             this._scrollTop = this.setScrollTop(this._scrollTop + deltaHeight);
             this._physicalOffset += deltaHeight;
             console.log('adjusting scroll pos by ' + deltaHeight);
@@ -610,10 +623,14 @@ should be done via binding to the `selected` property of each model.
           }
           // Adjust scroll position
           deltaHeight = Math.round(this._viewportHeight - this._physicalOffset - this._physicalSize);
-          if (deltaHeight && (this._virtualStart === 0)) {
+          if (this._virtualStart > 0) {
+            // Ensure at least 1 px of scroll headroom if we haven't rendered the bottom-most items yet
+            deltaHeight = Math.min(deltaHeight-1, 0);
+          }
+          if (deltaHeight) {
             this._scrollTop = this.setScrollTop(this._scrollTop - deltaHeight);
             this._physicalOffset += deltaHeight;
-            console.log(this._scrollTop, 'adjusting scroll pos by ' + deltaHeight);
+            console.log(this._scrollTop, 'adjusting scroll pos by ' + deltaHeight, this._viewportHeight, this._physicalOffset, this._physicalSize);
             adjustViewport = true;
           }
           // Flip up
@@ -676,6 +693,7 @@ should be done via binding to the `selected` property of each model.
           this.refresh(true);
         }.bind(this));
       }
+
       Platform.flush();
     },
 
