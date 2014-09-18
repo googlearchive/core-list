@@ -10,6 +10,7 @@
 .core-list-page {
   position: absolute;
   transform: translateZ(0px);
+  width: 100%;
 }
 
 .core-list-viewport > * {

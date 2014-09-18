@@ -62,7 +62,7 @@ should be done via binding to the `selected` property of each model.
   <core-selection id="selection" multi="{{multi}}" on-core-select="{{selectedHandler}}"></core-selection>
   <link rel="stylesheet" href="core-list.css">
   <div id="viewport" class="core-list-viewport" style="height: {{_viewportHeight}}px">
-    <div id="page" class="core-list-page" style="top: {{_pageTop}}; bottom: {{_pageBottom}}"><content></content></div>
+    <div id="page" layout vertical class="core-list-page" style="top: {{_pageTop}}; bottom: {{_pageBottom}}"><content></content></div>
   </div>
 </template>
 <script>
@@ -112,17 +112,6 @@ should be done via binding to the `selected` property of each model.
        */
       sizingHeight: 150,
       runwayFactor: 3,
-
-      /**
-       * 
-       * The number of extra items rendered above the minimum set required to
-       * fill the list's height.
-       *
-       * @attribute extraItems
-       * @type number
-       * @default 30
-       */
-      extraItems: 10,
 
       /**
        * 
@@ -347,7 +336,7 @@ should be done via binding to the `selected` property of each model.
       
       // Add physical items up to a max based on data length, viewport size, and extra item overhang
       var currentCount = this._physicalCount || 0;
-      this._physicalCount = Math.min(Math.ceil(this._target.offsetHeight / this.sizingHeight) * this.runwayFactor, this._virtualCount);
+      this._physicalCount = Math.ceil(Math.min(this._target.offsetHeight / this.sizingHeight * this.runwayFactor), this._virtualCount);
       this._physicalCount = Math.max(currentCount, this._physicalCount);
       this._physicalData = this._physicalData || new Array(this._physicalCount);
       var needItemInit = false;
@@ -404,6 +393,8 @@ should be done via binding to the `selected` property of each model.
           this._selectedData.get(virtualDatum) : null;
       var physicalItem = this._physicalItems[physicalIndex];
       physicalItem.hidden = !virtualDatum;
+      physicalItem.style.order = virtualIndex;
+      physicalItem.style.webkitOrder = virtualIndex;
       physicalItem.classList.toggle('core-list-hide-divider', !physicalDatum.isDivider);
     },
 
@@ -412,15 +403,16 @@ should be done via binding to the `selected` property of each model.
       this._scrollTop = e.detail ? e.detail.target.scrollTop : e.target.scrollTop;
       var delta = this._scrollTop - lastScrollTop;
       // console.log('delta', lastScrollTop, this._scrollTop, delta);
-      this.refresh(false, delta);
-
-      if (this.refreshAsync) {
-        cancelAnimationFrame(this.refreshAsync);
-      }
-      this.refreshAsync = requestAnimationFrame(function() {
-        console.log('refresh async');
-        this.refresh(false, delta > 0 ? 1 : -1);
-        this.refreshAsync = null;
+      requestAnimationFrame(function() {
+        this.refresh(false, delta);
+        // if (this.refreshAsync) {
+        //   cancelAnimationFrame(this.refreshAsync);
+        // }
+        // this.refreshAsync = requestAnimationFrame(function() {
+        //   console.log('refresh async');
+        //   this.refresh(false, delta > 0 ? 1 : -1);
+        //   this.refreshAsync = null;
+        // }.bind(this));
       }.bind(this));
     },
 
@@ -610,7 +602,7 @@ should be done via binding to the `selected` property of each model.
           for (i=0; (i<this._physicalCount) && (limit > 0) && (this._virtualStart < this._virtualCount - this._physicalCount); i++) {
             adjustViewport = true;
             adjustData = true;
-            size = this._physicalSizes[i];
+            size = this._physicalSizes[this._virtualStart % this._physicalCount];
             this._physicalOffset += size;
             limit -= size;
             console.log(this._scrollTop, delta, 'flip down', this._virtualStart, size, limit);
@@ -639,7 +631,7 @@ should be done via binding to the `selected` property of each model.
           for (i=this._physicalCount-1; (i >= 0) && (limit > 0) && (this._virtualStart > 0); i--) {
             adjustViewport = true;
             adjustData = true;
-            size = this._physicalSizes[i];
+            size = this._physicalSizes[(this._virtualStart + this._physicalCount - 1) % this._physicalCount];
             this._physicalOffset += size;
             limit -= size;
             console.log(this._scrollTop, delta, 'flip up', this._virtualStart, size, limit);
@@ -664,7 +656,9 @@ should be done via binding to the `selected` property of each model.
         var group = this.groups && this._groupStart;
         var index = this._groupStartIndex;
         for (i = 0; i < this._physicalCount; ++i) {
-          this.updateItem(i, group, index, this._virtualStart + i);
+          var virtualIndex = (this._virtualStart + i);
+          var physicalIndex = virtualIndex % this._physicalCount;
+          this.updateItem(physicalIndex, group, index, virtualIndex);
           index++;
           if (this.groups && group < this.groups.length - 1) {
             if (index >= this.getGroupLen(group)) {
@@ -694,7 +688,9 @@ should be done via binding to the `selected` property of each model.
         }.bind(this));
       }
 
-      Platform.flush();
+      if (adjustViewport || adjustData || force) {
+        Platform.performMicrotaskCheckpoint();
+      }
     },
 
     // list selection
