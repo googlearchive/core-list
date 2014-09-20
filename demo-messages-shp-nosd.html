@@ -25,6 +25,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <link rel="import" href="../paper-item/paper-item.html">
   <link rel="import" href="../paper-input/paper-input.html">
   <link rel="import" href="../core-overlay/core-overlay.html">
+  <link rel="import" href="../core-scroll-header-panel/core-scroll-header-panel.html">
   <style>
     html, body {
       margin: 0;
@@ -114,26 +115,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   <core-ajax url="demo-data-500.json" response="{{data}}" auto></core-ajax>
 
-  <core-toolbar class="toolbar">
-    <paper-menu-button icon="menu" on-core-activate="{{jumpToGroup}}">
-      <template repeat="{{group, index in groups}}">
-        <paper-item label="{{group.data.label}}"></paper-item>
-      </template>
-    </paper-menu-button>
-    <div flex>Inbox
-      <!-- {{$.list.$.page.offsetHeight - ($.list.scrollTop - $.list._physicalOffset) - $.list.offsetHeight}}  -->
-    </div>
-    <core-icon-button id="searchButton" icon="search" on-tap="{{toggleSearch}}"></core-icon-button>
-    <core-icon-button icon="check-circle"></core-icon-button>
-  </core-toolbar>
-  <core-overlay id="searchOverlay" transition="core-transition-right" on-core-overlay-open="{{searchOpened}}">
-    <core-toolbar class="toolbar" layout horizontal>
-      <core-icon icon="search"></core-icon>
-      <paper-input id="searchInput" flex on-input="{{updateFilter}}"></paper-input>
-      <core-icon-button icon="cancel" on-tap="{{toggleSearch}}"></core-icon-button>
-    </core-toolbar>
-  </core-overlay>
-  <core-list id="list" data="{{filteredData}}" groups="{{filteredGroups}}" flex runwayFactor="4">
+  <core-list id="list" data="{{filteredData}}" groups="{{filteredGroups}}" content runwayFactor="4" fit>
     <template>
       <div>
         <div class="divider" divider>{{groupModel.label}}</div>
@@ -142,7 +124,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           <div class="pad" flex layout vertical>
             <div class="primary">{{model.name}}</div>
             <div class="secondary">{{model.shortText}}</div>
-            <div class="secondary dim Xclamp">{{model.longText}}</div>
+            <div class="secondary dim clamp">{{model.longText}}</div>
           </div>
           <core-icon icon="{{model.boolean ? 'star' : 'star-outline'}}"></core-icon>
         </div>
@@ -150,6 +132,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       </div>
     </template>
   </core-list>
+  <core-scroll-header-panel condenses id="panel" scroller="{{$.list}}">
+    <core-toolbar class="toolbar tall">
+      <paper-menu-button icon="menu" on-core-activate="{{jumpToGroup}}">
+        <template repeat="{{group, index in groups}}">
+          <paper-item label="{{group.data.label}}"></paper-item>
+        </template>
+      </paper-menu-button>
+      <div flex>Inbox
+        <!-- {{$.list.$.page.offsetHeight - ($.list.scrollTop - $.list._physicalOffset) - $.list.offsetHeight}}  -->
+      </div>
+      <core-icon-button id="searchButton" icon="search" on-tap="{{toggleSearch}}"></core-icon-button>
+      <core-icon-button icon="check-circle"></core-icon-button>
+    </core-toolbar>
+    <core-overlay id="searchOverlay" transition="core-transition-right" on-core-overlay-open="{{searchOpened}}">
+      <core-toolbar class="toolbar" layout horizontal>
+        <core-icon icon="search"></core-icon>
+        <paper-input id="searchInput" flex on-input="{{updateFilter}}"></paper-input>
+        <core-icon-button icon="cancel" on-tap="{{toggleSearch}}"></core-icon-button>
+      </core-toolbar>
+    </core-overlay>
+  </core-scroll-header-panel>
   <paper-fab class="fab" icon="add"></paper-fab>
 
 <!--   <div class="super-scroll" layout vertical center>

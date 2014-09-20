@@ -61,9 +61,7 @@ should be done via binding to the `selected` property of each model.
 <template>
   <core-selection id="selection" multi="{{multi}}" on-core-select="{{selectedHandler}}"></core-selection>
   <link rel="stylesheet" href="core-list.css">
-  <div id="viewport" class="core-list-viewport" style="height: {{_viewportHeight}}px">
-    <div id="page" layout vertical class="core-list-page" style="top: {{_pageTop}}; bottom: {{_pageBottom}}"><content></content></div>
-  </div>
+  <div id="viewport" class="core-list-viewport"><content></content></div>
 </template>
 <script>
 (function() {
@@ -110,8 +108,8 @@ should be done via binding to the `selected` property of each model.
        * @type number
        * @default 80
        */
-      sizingHeight: 150,
-      runwayFactor: 3,
+      sizingHeight: 250,
+      runwayFactor: 4,
 
       /**
        * 
@@ -167,8 +165,6 @@ should be done via binding to the `selected` property of each model.
       this._virtualCount = 0;
       this._physicalOffset = 0;
       this._pagePosBasis = 'top';
-      this._pageTop = null;
-      this._pageBottom = null;
       this._physicalSize = 0;
       this._physicalSizes = [];
 
@@ -180,6 +176,19 @@ should be done via binding to the `selected` property of each model.
       var ios = navigator.userAgent.match(/iP(?:hone|ad;(?: U;)? CPU) OS (\d+)/);
       if (ios && ios[1] >= 8) {
         this.style.webkitOverflowScrolling = 'touch';
+      }
+
+      // Select translate method
+      if (document.documentElement.style.transform !== undefined) {
+        this._setTranslate = function(element, value) {
+          element.style.transform = 'translateY(' + value + 'px)';
+          element._translate = value;
+        };
+      } else {
+        this._setTranslate = function(element, value) {
+          element.style.webkitTransform = 'translateY(' + value + 'px)';
+          element._translate = value;
+        };
       }
     },
 
@@ -369,7 +378,7 @@ should be done via binding to the `selected` property of each model.
       this.refresh(true);
     },
 
-    updateItem: function(physicalIndex, groupIndex, groupItemIndex, virtualIndex) {
+    updateItemData: function(physicalItem, physicalIndex, groupIndex, groupItemIndex, virtualIndex) {
       var physicalDatum = this._physicalData[physicalIndex];
       var virtualDatum;
       if (groupIndex == null) {
@@ -378,42 +387,43 @@ should be done via binding to the `selected` property of each model.
         physicalDatum.isDivider = null;
         physicalDatum.groupModel = null;
       } else {
-        virtualDatum = this.data && this._nestedGroups ? this.data[groupIndex][groupItemIndex] : this.data[virtualIndex];
+        virtualDatum = this.data && this._nestedGroups ?
+          this.data[groupIndex][groupItemIndex] : this.data[virtualIndex];
         physicalDatum.groupIndex = groupIndex;
         physicalDatum.isDivider = (groupItemIndex === 0);
         var groupModel = this.groups[groupIndex];
         physicalDatum.groupModel = this._nestedGroups ? groupModel : groupModel.data;
       }
-      physicalDatum.model = virtualDatum;
+      if (physicalDatum.model != virtualDatum) {
+        physicalDatum.model = virtualDatum;
+        physicalItem._dataInvalidated = true;
+      } else {
+        physicalItem._dataInvalidated = false;
+      }
       physicalDatum.index = virtualIndex;
       physicalDatum.groupIndex = this.groups ? groupIndex : null;
       physicalDatum.groupItemIndex = this.groups ? groupItemIndex : null;
       physicalDatum.physicalIndex = physicalIndex;
       physicalDatum.selected = this.selectionEnabled && virtualDatum ? 
           this._selectedData.get(virtualDatum) : null;
-      var physicalItem = this._physicalItems[physicalIndex];
       physicalItem.hidden = !virtualDatum;
-      physicalItem.style.order = virtualIndex;
-      physicalItem.style.webkitOrder = virtualIndex;
       physicalItem.classList.toggle('core-list-hide-divider', !physicalDatum.isDivider);
     },
 
-    scrollHandler: function(e, detail) {
-      var lastScrollTop = this._scrollTop;
-      this._scrollTop = e.detail ? e.detail.target.scrollTop : e.target.scrollTop;
-      var delta = this._scrollTop - lastScrollTop;
+    scrollHandler: function(e) {
       // console.log('delta', lastScrollTop, this._scrollTop, delta);
-      requestAnimationFrame(function() {
+      if (this.refreshAsync) {
+        this.cancelAsync(this.refreshAsync);
+      }
+      this.refreshAsync = this.async(function(target) {
+        var lastScrollTop = this._scrollTop;
+        var scrollTop = this._scrollTop = target.scrollTop;
+        var delta = scrollTop - lastScrollTop;
+        this._dir = delta < 0 ? -1 : delta > 0 ? 1 : 0;
+        console.log(scrollTop, 'scroll refresh', delta);
         this.refresh(false, delta);
-        // if (this.refreshAsync) {
-        //   cancelAnimationFrame(this.refreshAsync);
-        // }
-        // this.refreshAsync = requestAnimationFrame(function() {
-        //   console.log('refresh async');
-        //   this.refresh(false, delta > 0 ? 1 : -1);
-        //   this.refreshAsync = null;
-        // }.bind(this));
-      }.bind(this));
+        this.refreshAsync = null;
+      }, e.detail && e.detail.target || e.target);
     },
 
     resetMetrics: function() {
@@ -426,15 +436,20 @@ should be done via binding to the `selected` property of each model.
       var count = 0;
       for (var i=0; i<this._physicalCount; i++) {
         var item = this._physicalItems[i];
-        var size = this._physicalSizes[i] = item.offsetHeight;
         if (!item.hidden) {
+          var size = this._physicalSizes[i] = item.offsetHeight;
           count++;
           totalSize += size;
         }
       }
+      this._physicalSize = totalSize;
       this._viewportHeight = this.$.viewport.offsetHeight;
-      this._physicalSize = this.$.page.offsetHeight;
-      
+
+      // Calculate flip bounds
+      var overhang = totalSize - this._target.offsetHeight;
+      this._flipBound = this._physicalOffset + (this._dir > 0 ? 0.4 : 0.6) * overhang;
+
+      // Calculate average height
       totalSize = (this._physicalAverage * this._physicalAverageCount) + totalSize;
       this._physicalAverageCount += count;
       this._physicalAverage = Math.round(totalSize / this._physicalAverageCount);
@@ -449,7 +464,7 @@ should be done via binding to the `selected` property of each model.
       }
     },
 
-    changeIndex: function(inc) {
+    changeStartIndex: function(inc) {
       this._virtualStart += inc;
       if (this.groups) {
         while (inc > 0) {
@@ -522,174 +537,128 @@ should be done via binding to the `selected` property of each model.
      *
      * @method refresh
      */
-    refresh: function(force, delta) {
+    refresh: function(force, scrollDelta, async, randomAccess) {
+      var i, virtualIndex, physicalIndex, physicalItem, deltaCount;
+
       if (!this.data) {
         return;
       }
 
-      var i, size, limit, adjustData, adjustViewport, groupLen, deltaHeight;
-
-      this.updateMetrics(force);
-
       // Random access to point in list
-      if (Math.abs(delta) > this._physicalSize || this._scrollToIndex != null) {
-        var deltaCount;
-        if (this._scrollToIndex != null) {
-          // Scrolling to specific index is a special case of random access
-          if (this._scrollToIndex > this._virtualCount - (this._target.offsetHeight / this._physicalAverage)) {
-            // Index near bottom requires bottom offset and guestimate virtual start
-            this.setPageBias('bottom');
-            this._scrollTop = this.setScrollTop(this._viewportHeight - this._target.offsetHeight);
-            this._physicalOffset = 0;
-            deltaCount = this._virtualCount - Math.round(this._physicalSize / this._physicalAverage) - this._virtualStart;
+      if (Math.abs(scrollDelta) > this._physicalSize) {
+        randomAccess = true;
+        deltaCount = Math.round(scrollDelta / this._physicalAverage);
+        deltaCount = Math.max(deltaCount, -this._virtualStart);
+        deltaCount = Math.min(deltaCount, this._virtualCount - this._virtualStart - 1);
+        this._physicalOffset += scrollDelta;
+        this.changeStartIndex(deltaCount);
+        // console.log(this._scrollTop, 'Random access to ' + this._virtualStart, this._physicalOffset);
+      }
+
+      // Jump to index in list (special form of random access)
+      if (this._scrollToIndex != null) {
+        randomAccess = true;
+        deltaCount = this._scrollToIndex - this._virtualStart;
+        scrollDelta = deltaCount * this._physicalAverage;
+        this._scrollTop = this.setScrollTop(this._scrollTop + scrollDelta);
+        this._physicalOffset = this._scrollTop;
+        this.changeStartIndex(deltaCount);
+        this._scrollToIndex = null;
+      }
+
+      // Measure
+      this.updateMetrics();
+
+      // Do we need to flip items?
+      if (!randomAccess  && !this._upPending && !async &&
+          ((this._dir > 0 && this._scrollTop > this._flipBound) ||
+           (this._dir < 0 && this._scrollTop < this._flipBound))) {
+        var flipSize = Math.abs(this._scrollTop - this._flipBound);
+        for (i=0; (i<this._physicalCount) && (flipSize > 0) &&
+            ((this._dir < 0 && this._virtualStart > 0) || 
+             (this._dir > 0 && this._virtualStart < this._virtualCount-this._physicalCount-1)); i++) {
+          var idx = this._dir > 0 ? this._virtualStart : this._virtualStart + this._physicalCount -1;
+          var size = this._physicalSizes[idx % this._physicalCount];
+          flipSize -= size;
+          this.changeStartIndex(this._dir);
+          if (this._dir > 0) {
+            this._physicalOffset += size;
+            // console.log(this._scrollTop, 'flip down', size, this._physicalOffset);
           } else {
-            this.setPageBias('top');
-            this._scrollTop = this.setScrollTop(this._scrollToIndex * this._physicalAverage);
-            this._physicalOffset = this._scrollTop;
-            deltaCount = this._scrollToIndex - this._virtualStart;
+            this._upPending = true;  
           }
-          this._scrollToIndex = null;
-        } else if (this._scrollTop < this._physicalAverage * this._physicalCount / 3) {
-          // Jumping to top-ish of list
-          deltaCount = -this._virtualStart;
-          this.setPageBias('top');
-          this._physicalOffset = 0;
-        } else if (this._scrollTop > this._viewportHeight - this._physicalAverage * this._physicalCount  / 3) {
-          // Jumping to bottom-ish of list
-          deltaCount = this._virtualCount - this._physicalCount - this._virtualStart;
-          this.setPageBias('bottom');
-          this._physicalOffset = 0;
-        } else {
-          // Jumping somewhere in the middle
-          deltaCount = Math.round(delta / this._physicalAverage);
-          deltaCount = Math.min(deltaCount, this._virtualCount - this._virtualStart - 1);
-          deltaCount = Math.max(deltaCount, -this._virtualStart);
-          this.setPageBias('top');
-          this._physicalOffset += delta;
         }
-        this.changeIndex(deltaCount);
-        adjustViewport = true;
-        adjustData = true;
-        delta = 0; // Avoid flipping logic
-        console.log(this._scrollTop, 'random access, new index', this._virtualStart);
+      }
+
+      // Assign data to items and adjust offset
+      var groupIndex = this.groups && this._groupStart;
+      var groupItemIndex = this._groupStartIndex;
+      for (i = 0; i < this._physicalCount; ++i) {
+        virtualIndex = this._virtualStart + i;
+        physicalIndex = virtualIndex % this._physicalCount;
+        physicalItem = this._physicalItems[physicalIndex];
+        // When going up, remove offset after measuring size for
+        // new data for item being moved from bottom to top
+        if (physicalItem._dataInvalidated && this._dir < 0 && !randomAccess) {
+          this._physicalOffset -= this._physicalSizes[physicalIndex];
+          this._upPending = false;
+          console.log(this._scrollTop, 'flip up', -this._physicalSizes[physicalIndex], this._physicalOffset);
+        }
+        // Update physical item with new user data and list metadata
+        this.updateItemData(physicalItem, physicalIndex, groupIndex, groupItemIndex, virtualIndex);
+        // Hide invalidated items until next frame when we have a chance to
+        // measure and position them
+        physicalItem.style.opacity = physicalItem._dataInvalidated ? 0 : 1;
+        // Increment
+        groupItemIndex++;
+        if (this.groups && groupIndex < this.groups.length - 1) {
+          if (groupItemIndex >= this.getGroupLen(groupIndex)) {
+            groupItemIndex = 0;
+            groupIndex++;
+          }
+        }
+      }
+
+      // Reset viewport height
+      if (async) {
+        this.$.viewport.style.height = (this._viewportHeight = 
+          this._physicalOffset + this._physicalSize + 
+          Math.max(this._virtualCount - this._virtualStart - this._physicalCount - 1, 0) * 
+            this._physicalAverage) + 'px';
+      }
+
+      // Adjust scroll position to home into top-dead-zero
+      var deltaHeight;
+      if (this._dir < 0) {
+        deltaHeight = this._virtualStart === 0 ? this._physicalOffset :
+          Math.min(this._scrollTop + this._physicalOffset, 0);
+        if (deltaHeight) {
+          this._scrollTop = this.setScrollTop(this._scrollTop - deltaHeight);
+          this._physicalOffset -= deltaHeight;
+          // console.log(this._scrollTop, 'adjusting scroll pos', deltaHeight);
+        }
+      }
+
+      // Position items
+      var offset = this._physicalOffset;
+      for (i = 0; i < this._physicalCount; ++i) {
+        virtualIndex = this._virtualStart + i;
+        physicalIndex = virtualIndex % this._physicalCount;
+        physicalItem = this._physicalItems[physicalIndex];
+        this._setTranslate(physicalItem, offset);
+        if (!physicalItem._dataInvalidated) {
+          offset += this._physicalSizes[physicalIndex];
+        }
+      }
+
+      Platform.performMicrotaskCheckpoint();
+
+      // Schedule another refresh to measure & position items
+      if (!async) {
         requestAnimationFrame(function() {
-          this.updateMetrics(true);
+          // console.log('async refresh');
+          this.refresh(false, 0, true, randomAccess);
         }.bind(this));
-      }
-
-      // Flip items up or down
-      if (this._physicalSize > this._target.offsetHeight) {
-        if (delta > 0) {
-          // Scrolling down; Flip page positioning basis if needed
-          if (this.setPageBias('top')) {
-            adjustViewport = true;
-          }
-          // Adjust scroll position
-          deltaHeight = Math.round(this._viewportHeight - this._physicalOffset - this._physicalSize);
-          if (this._virtualStart < (this._virtualCount - this._physicalCount)) {
-            // Ensure at least 1 px of scroll headroom if we haven't rendered the top-most items yet
-            deltaHeight = Math.min(deltaHeight-1, 0);
-          }
-          if (deltaHeight) {
-            this._scrollTop = this.setScrollTop(this._scrollTop + deltaHeight);
-            this._physicalOffset += deltaHeight;
-            console.log('adjusting scroll pos by ' + deltaHeight);
-            adjustViewport = true;
-          }
-          // Flip down
-          limit = this._scrollTop - this._physicalOffset - (this._physicalSize - this._target.offsetHeight) * 0.25;
-          // console.log(this._scrollTop, 'limit:', limit);
-          for (i=0; (i<this._physicalCount) && (limit > 0) && (this._virtualStart < this._virtualCount - this._physicalCount); i++) {
-            adjustViewport = true;
-            adjustData = true;
-            size = this._physicalSizes[this._virtualStart % this._physicalCount];
-            this._physicalOffset += size;
-            limit -= size;
-            console.log(this._scrollTop, delta, 'flip down', this._virtualStart, size, limit);
-            this.changeIndex(+1);
-          }
-        } else if (delta < 0) {
-          // Scrolling up; Flip page positioning basis if needed
-          if (this.setPageBias('bottom')) {
-            adjustViewport = true;
-          }
-          // Adjust scroll position
-          deltaHeight = Math.round(this._viewportHeight - this._physicalOffset - this._physicalSize);
-          if (this._virtualStart > 0) {
-            // Ensure at least 1 px of scroll headroom if we haven't rendered the bottom-most items yet
-            deltaHeight = Math.min(deltaHeight-1, 0);
-          }
-          if (deltaHeight) {
-            this._scrollTop = this.setScrollTop(this._scrollTop - deltaHeight);
-            this._physicalOffset += deltaHeight;
-            console.log(this._scrollTop, 'adjusting scroll pos by ' + deltaHeight, this._viewportHeight, this._physicalOffset, this._physicalSize);
-            adjustViewport = true;
-          }
-          // Flip up
-          limit = (this._viewportHeight - this._physicalOffset - this._physicalSize) - this._scrollTop + (this._physicalSize - this._target.offsetHeight) * 0.75;
-          // console.log(this._scrollTop, 'limit:', limit);
-          for (i=this._physicalCount-1; (i >= 0) && (limit > 0) && (this._virtualStart > 0); i--) {
-            adjustViewport = true;
-            adjustData = true;
-            size = this._physicalSizes[(this._virtualStart + this._physicalCount - 1) % this._physicalCount];
-            this._physicalOffset += size;
-            limit -= size;
-            console.log(this._scrollTop, delta, 'flip up', this._virtualStart, size, limit);
-            this.changeIndex(-1);
-          }
-        }
-      }
-
-      // Reset viewport height and adjust offset
-      var lastHeight = this._viewportHeight;
-      this._viewportHeight = this._physicalAverage * this._virtualCount;
-      deltaHeight = this._viewportHeight - lastHeight;
-      if (deltaHeight) {
-        if (this._pagePosBasis == 'bottom') {
-          this._physicalOffset += deltaHeight;
-        }
-        adjustViewport = true;
-      }
-
-      if (adjustData || force) {
-        // Re-assign data
-        var group = this.groups && this._groupStart;
-        var index = this._groupStartIndex;
-        for (i = 0; i < this._physicalCount; ++i) {
-          var virtualIndex = (this._virtualStart + i);
-          var physicalIndex = virtualIndex % this._physicalCount;
-          this.updateItem(physicalIndex, group, index, virtualIndex);
-          index++;
-          if (this.groups && group < this.groups.length - 1) {
-            if (index >= this.getGroupLen(group)) {
-              index = 0;
-              group++;
-            }
-          }
-        }
-      }
-
-      if (adjustViewport || force) {
-        // Position page 
-        if (this._pagePosBasis == 'top') {
-          this._pageTop = this._physicalOffset + 'px';
-          this._pageBottom = 'auto';
-        } else {
-          this._pageTop = 'auto';
-          this._pageBottom = this._physicalOffset + 'px';
-        }
-      }
-
-      if (this._itemInitRefresh) {
-        this._itemInitRefresh = false;
-        requestAnimationFrame(function() {
-          this.resetMetrics();
-          this.refresh(true);
-        }.bind(this));
-      }
-
-      if (adjustViewport || adjustData || force) {
-        Platform.performMicrotaskCheckpoint();
       }
     },
 
@@ -744,8 +713,7 @@ should be done via binding to the `selected` property of each model.
       // selected data but we want to optimize for lookup.
       this._selectedData.set(detail.item, detail.isSelected);
       if (id.physical >= 0 && id.virtual >= 0) {
-        var gd = this.groupForVirtualIndex(id.virtual);
-        this.updateItem(id.physical, gd.group, gd.groupIndex, id.virtual);
+        this.refresh(true);
       }
     },
 
@@ -830,9 +798,11 @@ should be done via binding to the `selected` property of each model.
       } else {
         index = group;
       }
+      index = Math.min(index, this._virtualCount-1);
+      index = Math.max(index, 0);
       this._scrollToIndex = index;
       this.refresh(true);
-      console.log('scroll from ' + this._scrollTop + ' to ' + this._target.scrollTop);
+      // console.log('scroll from ' + this._scrollTop + ' to ' + this._target.scrollTop);
     },
 
     scrollToGroup: function(group) {
