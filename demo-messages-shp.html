@@ -115,24 +115,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   <core-ajax url="demo-data-500.json" response="{{data}}" auto></core-ajax>
 
-  <core-list id="list" data="{{filteredData}}" groups="{{filteredGroups}}" content runwayFactor="4" fit>
-    <template>
-      <div>
-        <div class="divider" divider>{{groupModel.label}}</div>
-        <div class="item" layout horizontal>
-          <img class="avatar" src="{{model.image}}">
-          <div class="pad" flex layout vertical>
-            <div class="primary">{{model.name}}</div>
-            <div class="secondary">{{model.shortText}}</div>
-            <div class="secondary dim clamp">{{model.longText}}</div>
-          </div>
-          <core-icon icon="{{model.boolean ? 'star' : 'star-outline'}}"></core-icon>
-        </div>
-        <div class="border"></div>
-      </div>
-    </template>
-  </core-list>
-  <core-scroll-header-panel condenses id="panel" scroller="{{$.list}}">
+  <core-scroll-header-panel condenses id="panel" fit>
     <core-toolbar class="toolbar tall">
       <paper-menu-button icon="menu" on-core-activate="{{jumpToGroup}}">
         <template repeat="{{group, index in groups}}">
@@ -152,6 +135,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         <core-icon-button icon="cancel" on-tap="{{toggleSearch}}"></core-icon-button>
       </core-toolbar>
     </core-overlay>
+    <core-list id="list" data="{{filteredData}}" groups="{{filteredGroups}}" content runwayFactor="4" content scrollTarget="{{$.panel.scroller}}">
+      <template>
+        <div>
+          <div class="divider" divider>{{groupModel.label}}</div>
+          <div class="item" layout horizontal>
+            <img class="avatar" src="{{model.image}}">
+            <div class="pad" flex layout vertical>
+              <div class="primary">{{model.name}}</div>
+              <div class="secondary">{{model.shortText}}</div>
+              <div class="secondary dim clamp">{{model.longText}}</div>
+            </div>
+            <core-icon icon="{{model.boolean ? 'star' : 'star-outline'}}"></core-icon>
+          </div>
+          <div class="border"></div>
+        </div>
+      </template>
+    </core-list>
   </core-scroll-header-panel>
   <paper-fab class="fab" icon="add"></paper-fab>
 

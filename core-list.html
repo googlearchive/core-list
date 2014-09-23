@@ -146,7 +146,12 @@ should be done via binding to the `selected` property of each model.
        * @type {any}
        * @default null
        */
-       selection: null
+       selection: null,
+
+       loadMoreThreshold: null,
+
+       grid: false,
+       width: null
     },
 
     // Local cache of scrollTop
@@ -164,7 +169,6 @@ should be done via binding to the `selected` property of each model.
       this._virtualStart = 0;
       this._virtualCount = 0;
       this._physicalOffset = 0;
-      this._pagePosBasis = 'top';
       this._physicalSize = 0;
       this._physicalSizes = [];
 
@@ -172,24 +176,7 @@ should be done via binding to the `selected` property of each model.
       this._groupStart = 0;
       this._groupStartIndex = 0;
 
-      // Only use -webkit-overflow-touch from iOS8+, where scroll events are fired
-      var ios = navigator.userAgent.match(/iP(?:hone|ad;(?: U;)? CPU) OS (\d+)/);
-      if (ios && ios[1] >= 8) {
-        this.style.webkitOverflowScrolling = 'touch';
-      }
-
-      // Select translate method
-      if (document.documentElement.style.transform !== undefined) {
-        this._setTranslate = function(element, value) {
-          element.style.transform = 'translateY(' + value + 'px)';
-          element._translate = value;
-        };
-      } else {
-        this._setTranslate = function(element, value) {
-          element.style.webkitTransform = 'translateY(' + value + 'px)';
-          element._translate = value;
-        };
-      }
+      // window.addEventListener('resize', );
     },
 
     attached: function() {
@@ -197,6 +184,10 @@ should be done via binding to the `selected` property of each model.
       if (!this.template.bindingDelegate) {
         this.template.bindingDelegate = this.element.syntax;
       }
+    },
+
+    detached: function() {
+      this.removeEventListener(this._boundScrollHandler);
     },
 
     _resetSelection: function() {
@@ -246,7 +237,7 @@ should be done via binding to the `selected` property of each model.
           this._target.removeEventListener('scroll', this._boundScrollHandler, false);
         }
         this._target = target;
-        this._target.addEventListener('scroll', this._boundScrollHandler, false);
+        target.addEventListener('scroll', this._boundScrollHandler, false);
         if ((target != this) && target.setScrollTop && target.getScrollTop) {
           this.setScrollTop = function(val) {
             target.setScrollTop(val);
@@ -258,6 +249,17 @@ should be done via binding to the `selected` property of each model.
             return target.scrollTop;
           };
         }
+        // Only use -webkit-overflow-touch from iOS8+, where scroll events are fired
+        var ios = navigator.userAgent.match(/iP(?:hone|ad;(?: U;)? CPU) OS (\d+)/);
+        if (ios && ios[1] >= 8) {
+          target.style.webkitOverflowScrolling = 'touch';
+        }
+        // Force overflow as necessary
+        // target.style.willChange = 'transform';
+        target.style.overflow = 'auto';
+        if (target != this) {
+          this.style.overflow = 'visible';
+        }
       }
 
       this.initializeData(splices, false);
@@ -265,12 +267,16 @@ should be done via binding to the `selected` property of each model.
 
     updateGroupObservers: function(splices) {
       // If we're going from grouped to non-grouped, remove all observers
-      if (!this._nestedGroups && this._groupObservers && this._groupObservers.length) {
-        splices = [{
-          index: 0,
-          addedCount: 0,
-          removed: this._groupObservers
-        }];
+      if (!this._nestedGroups) {
+        if (this._groupObservers && this._groupObservers.length) {
+          splices = [{
+            index: 0,
+            addedCount: 0,
+            removed: this._groupObservers
+          }];
+        } else {
+          splices = null;
+        }
       }
       // Otherwise, create observers for all groups, unless this is a group splice
       if (this._nestedGroups) {
@@ -316,6 +322,17 @@ should be done via binding to the `selected` property of each model.
     },
 
     initializeData: function(splices, groupUpdate) {
+      // Calculate row-factor for grid layout
+      if (this.grid) {
+        if (!this.width) {
+          throw 'grid requires the `width` property to be set';
+        }
+        this._rowFactor = Math.floor(this._target.offsetWidth / this.width) || 1;
+        this._rowMargin = (this._target.offsetWidth - (this._rowFactor * this.width)) / 2;
+      } else {
+        this._rowFactor = 1;
+      }
+
       // Count virtual data size, depending on whether grouping is enabled
       if (!this.data) {        
         this._virtualCount = 0;
@@ -345,7 +362,7 @@ should be done via binding to the `selected` property of each model.
       
       // Add physical items up to a max based on data length, viewport size, and extra item overhang
       var currentCount = this._physicalCount || 0;
-      this._physicalCount = Math.ceil(Math.min(this._target.offsetHeight / this.sizingHeight * this.runwayFactor), this._virtualCount);
+      this._physicalCount = Math.ceil(Math.min(this._target.offsetHeight / this.sizingHeight * this.runwayFactor), this._virtualCount) * this._rowFactor;
       this._physicalCount = Math.max(currentCount, this._physicalCount);
       this._physicalData = this._physicalData || new Array(this._physicalCount);
       var needItemInit = false;
@@ -410,6 +427,7 @@ should be done via binding to the `selected` property of each model.
       physicalItem.classList.toggle('core-list-hide-divider', !physicalDatum.isDivider);
     },
 
+    _dir: 0,
     scrollHandler: function(e) {
       // console.log('delta', lastScrollTop, this._scrollTop, delta);
       if (this.refreshAsync) {
@@ -420,10 +438,28 @@ should be done via binding to the `selected` property of each model.
         var scrollTop = this._scrollTop = target.scrollTop;
         var delta = scrollTop - lastScrollTop;
         this._dir = delta < 0 ? -1 : delta > 0 ? 1 : 0;
-        console.log(scrollTop, 'scroll refresh', delta);
+        // console.log(scrollTop, 'scroll refresh', delta);
         this.refresh(false, delta);
         this.refreshAsync = null;
+
+        this.checkLoadMore();
+
       }, e.detail && e.detail.target || e.target);
+    },
+
+    checkLoadMore: function() {
+      if (this.loadMoreThreshold && !this.loadPending && 
+          (this._virtualStart > (this._virtualCount - this._physicalCount) - this.loadMoreThreshold)) {
+        // console.log('load more');
+        this.loadPending = true;
+        this.fire('load-more', {
+          done: function() {
+            this.async(function() {
+              this._loadDone = true;
+            });
+          }.bind(this)
+        });
+      }
     },
 
     resetMetrics: function() {
@@ -438,15 +474,15 @@ should be done via binding to the `selected` property of each model.
         var item = this._physicalItems[i];
         if (!item.hidden) {
           var size = this._physicalSizes[i] = item.offsetHeight;
-          count++;
           totalSize += size;
+          count++;
         }
       }
-      this._physicalSize = totalSize;
+      this._physicalSize = totalSize / this._rowFactor;
       this._viewportHeight = this.$.viewport.offsetHeight;
 
       // Calculate flip bounds
-      var overhang = totalSize - this._target.offsetHeight;
+      var overhang = this._physicalSize - this._target.offsetHeight;
       this._flipBound = this._physicalOffset + (this._dir > 0 ? 0.4 : 0.6) * overhang;
 
       // Calculate average height
@@ -524,14 +560,6 @@ should be done via binding to the `selected` property of each model.
       }
     },
 
-    setPageBias: function(bias) {
-      if (this._pagePosBasis != bias) {
-        this._pagePosBasis = bias;
-        this._physicalOffset = (this._viewportHeight - this._physicalOffset - this._physicalSize);
-        return true;
-      }
-    },
-
     /**
      * Refresh the list at the current scroll position.
      *
@@ -580,10 +608,10 @@ should be done via binding to the `selected` property of each model.
           var idx = this._dir > 0 ? this._virtualStart : this._virtualStart + this._physicalCount -1;
           var size = this._physicalSizes[idx % this._physicalCount];
           flipSize -= size;
-          this.changeStartIndex(this._dir);
+          this.changeStartIndex(this._dir * this._rowFactor);
           if (this._dir > 0) {
             this._physicalOffset += size;
-            // console.log(this._scrollTop, 'flip down', size, this._physicalOffset);
+            // console.log(this._scrollTop, 'flip down', this._virtualStart, size, this._physicalOffset);
           } else {
             this._upPending = true;  
           }
@@ -600,9 +628,11 @@ should be done via binding to the `selected` property of each model.
         // When going up, remove offset after measuring size for
         // new data for item being moved from bottom to top
         if (physicalItem._dataInvalidated && this._dir < 0 && !randomAccess) {
-          this._physicalOffset -= this._physicalSizes[physicalIndex];
+          if (virtualIndex % this._rowFactor == 0) {
+            this._physicalOffset -= this._physicalSizes[physicalIndex];
+          }
           this._upPending = false;
-          console.log(this._scrollTop, 'flip up', -this._physicalSizes[physicalIndex], this._physicalOffset);
+          // console.log(this._scrollTop, 'flip up', this._virtualStart, -this._physicalSizes[physicalIndex], this._physicalOffset);
         }
         // Update physical item with new user data and list metadata
         this.updateItemData(physicalItem, physicalIndex, groupIndex, groupItemIndex, virtualIndex);
@@ -619,35 +649,60 @@ should be done via binding to the `selected` property of each model.
         }
       }
 
-      // Reset viewport height
       if (async) {
-        this.$.viewport.style.height = (this._viewportHeight = 
-          this._physicalOffset + this._physicalSize + 
-          Math.max(this._virtualCount - this._virtualStart - this._physicalCount - 1, 0) * 
-            this._physicalAverage) + 'px';
-      }
-
-      // Adjust scroll position to home into top-dead-zero
-      var deltaHeight;
-      if (this._dir < 0) {
-        deltaHeight = this._virtualStart === 0 ? this._physicalOffset :
-          Math.min(this._scrollTop + this._physicalOffset, 0);
-        if (deltaHeight) {
-          this._scrollTop = this.setScrollTop(this._scrollTop - deltaHeight);
-          this._physicalOffset -= deltaHeight;
-          // console.log(this._scrollTop, 'adjusting scroll pos', deltaHeight);
+        // Reset viewport height
+        if (this._dir >= 0) {
+          var remaining = Math.max(this._virtualCount - this._virtualStart - this._physicalCount - 1, 0);
+          if (this.grid) {
+            remaining = Math.ceil(remaining / this._rowFactor);
+          }
+          var vh = this._physicalOffset + this._physicalSize + remaining * this._physicalAverage;
+          if (this._viewportHeight != vh) {
+            this._viewportHeight = vh;
+            this.$.viewport.style.height = this._viewportHeight + 'px';
+            // console.log('viewport height', this._viewportHeight);
+          }
         }
+        // Reset load status after viewport has been updated
+        if (this._loadDone) {
+          // console.log('laod done');
+          this._loadDone = false;
+          this.loadPending = false;
+          this.checkLoadMore();
+        }
+        // Adjust scroll position to home into top-dead-zero
+        var deltaHeight;
+        if (this._dir < 0) {
+          deltaHeight = this._virtualStart === 0 ? this._physicalOffset :
+            Math.min(this._scrollTop + this._physicalOffset, 0);
+          if (deltaHeight) {
+            this._scrollTop = this.setScrollTop(this._scrollTop - deltaHeight);
+            this._physicalOffset -= deltaHeight;
+            // console.log(this._scrollTop, 'adjusting scroll pos', deltaHeight);
+          }
+        }
+
       }
 
       // Position items
-      var offset = this._physicalOffset;
+      var x = 0;
+      var y = this._physicalOffset;
       for (i = 0; i < this._physicalCount; ++i) {
         virtualIndex = this._virtualStart + i;
         physicalIndex = virtualIndex % this._physicalCount;
         physicalItem = this._physicalItems[physicalIndex];
-        this._setTranslate(physicalItem, offset);
-        if (!physicalItem._dataInvalidated) {
-          offset += this._physicalSizes[physicalIndex];
+        if (this.grid) {
+          x = this._rowMargin + (virtualIndex % this._rowFactor) * this.width;
+        }
+        if (physicalItem._translateX != x || physicalItem._translateY != y) {
+          physicalItem.style.transform = physicalItem.style.webkitTransform =
+            'translate3d(' + x + 'px,' + y + 'px,0)';
+          physicalItem._translateX = x; // for debug
+          physicalItem._translateY = y; // for debug
+          console.log(physicalItem.style.transform);
+        }
+        if (!physicalItem._dataInvalidated && (virtualIndex % this._rowFactor == this._rowFactor-1)) {
+          y += this._physicalSizes[physicalIndex];
         }
       }
 
