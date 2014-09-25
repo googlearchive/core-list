@@ -176,7 +176,8 @@ should be done via binding to the `selected` property of each model.
       this._groupStart = 0;
       this._groupStartIndex = 0;
 
-      // window.addEventListener('resize', );
+      this._boundResizeHandler = this.resizeHandler.bind(this);
+      window.addEventListener('resize', this._boundResizeHandler);
     },
 
     attached: function() {
@@ -188,6 +189,11 @@ should be done via binding to the `selected` property of each model.
 
     detached: function() {
       this.removeEventListener(this._boundScrollHandler);
+      this.removeEventListener(this._boundResizeHandler);
+    },
+
+    resizeHandler: function() {
+      this.initializeData();
     },
 
     _resetSelection: function() {
@@ -255,9 +261,10 @@ should be done via binding to the `selected` property of each model.
           target.style.webkitOverflowScrolling = 'touch';
         }
         // Force overflow as necessary
-        // target.style.willChange = 'transform';
-        target.style.overflow = 'auto';
-        if (target != this) {
+        if (target == this) {
+          this.style.willChange = 'transform';
+          this.style.overflow = 'auto';
+        } else {
           this.style.overflow = 'visible';
         }
       }
@@ -331,6 +338,7 @@ should be done via binding to the `selected` property of each model.
         this._rowMargin = (this._target.offsetWidth - (this._rowFactor * this.width)) / 2;
       } else {
         this._rowFactor = 1;
+        this._rowMargin = 0;
       }
 
       // Count virtual data size, depending on whether grouping is enabled
@@ -362,7 +370,7 @@ should be done via binding to the `selected` property of each model.
       
       // Add physical items up to a max based on data length, viewport size, and extra item overhang
       var currentCount = this._physicalCount || 0;
-      this._physicalCount = Math.ceil(Math.min(this._target.offsetHeight / this.sizingHeight * this.runwayFactor), this._virtualCount) * this._rowFactor;
+      this._physicalCount = Math.min(Math.ceil(this._target.offsetHeight / this.sizingHeight * this.runwayFactor * this._rowFactor), this._virtualCount);
       this._physicalCount = Math.max(currentCount, this._physicalCount);
       this._physicalData = this._physicalData || new Array(this._physicalCount);
       var needItemInit = false;
@@ -382,16 +390,17 @@ should be done via binding to the `selected` property of each model.
 
     initializeItems: function() {
       var currentCount = this._physicalItems && this._physicalItems.length || 0;
-      this._physicalItems = this._physicalItems || new Array(this._physicalCount);
+      this._physicalItems = this._physicalItems || [new Array(this._physicalCount)];
+      this._physicalDividers = this._physicalDividers || new Array(this._physicalCount);
       for (var i = 0, item = this.template.nextElementSibling;
            item && i < this._physicalCount;
-           ++i, item = item.nextElementSibling) {
-        this._physicalItems[i] = item;
-        item._transformValue = 0;
+           item = item.nextElementSibling) {
+        if (item.getAttribute('divider') != null) {
+          this._physicalDividers[i] = item;
+        } else {
+          this._physicalItems[i++] = item;
+        }
       }
-      // Flag to refresh, since we'll need one additional refresh after data is
-      // populated to determine correct metrics
-      this._itemInitRefresh = true;
       this.refresh(true);
     },
 
@@ -409,7 +418,7 @@ should be done via binding to the `selected` property of each model.
         physicalDatum.groupIndex = groupIndex;
         physicalDatum.isDivider = (groupItemIndex === 0);
         var groupModel = this.groups[groupIndex];
-        physicalDatum.groupModel = this._nestedGroups ? groupModel : groupModel.data;
+        physicalDatum.groupModel = groupModel && (this._nestedGroups ? groupModel : groupModel.data);
       }
       if (physicalDatum.model != virtualDatum) {
         physicalDatum.model = virtualDatum;
@@ -423,28 +432,24 @@ should be done via binding to the `selected` property of each model.
       physicalDatum.physicalIndex = physicalIndex;
       physicalDatum.selected = this.selectionEnabled && virtualDatum ? 
           this._selectedData.get(virtualDatum) : null;
+      physicalItem._isDivider = physicalDatum.isDivider;
       physicalItem.hidden = !virtualDatum;
-      physicalItem.classList.toggle('core-list-hide-divider', !physicalDatum.isDivider);
+      var divider = this._physicalDividers[physicalIndex];
+      if (divider) {
+        divider.hidden = !physicalDatum.isDivider;
+      }
     },
 
     _dir: 0,
     scrollHandler: function(e) {
-      // console.log('delta', lastScrollTop, this._scrollTop, delta);
-      if (this.refreshAsync) {
-        this.cancelAsync(this.refreshAsync);
-      }
-      this.refreshAsync = this.async(function(target) {
-        var lastScrollTop = this._scrollTop;
-        var scrollTop = this._scrollTop = target.scrollTop;
-        var delta = scrollTop - lastScrollTop;
-        this._dir = delta < 0 ? -1 : delta > 0 ? 1 : 0;
-        // console.log(scrollTop, 'scroll refresh', delta);
-        this.refresh(false, delta);
-        this.refreshAsync = null;
-
-        this.checkLoadMore();
-
-      }, e.detail && e.detail.target || e.target);
+      var target = e.detail && e.detail.target || e.target;
+      var lastScrollTop = this._scrollTop;
+      var scrollTop = this._scrollTop = target.scrollTop;
+      var delta = scrollTop - lastScrollTop;
+      this._dir = delta < 0 ? -1 : delta > 0 ? 1 : 0;
+      // console.log(scrollTop, 'scroll refresh', delta);
+      this.refresh(false, delta);
+      this.checkLoadMore();
     },
 
     checkLoadMore: function() {
@@ -473,7 +478,14 @@ should be done via binding to the `selected` property of each model.
       for (var i=0; i<this._physicalCount; i++) {
         var item = this._physicalItems[i];
         if (!item.hidden) {
-          var size = this._physicalSizes[i] = item.offsetHeight;
+          var size = item.offsetHeight;
+          if (item._isDivider) {
+            var divider = this._physicalDividers[i];
+            if (divider) {
+              size += divider.offsetHeight;
+            }
+          }
+          this._physicalSizes[i] = size;
           totalSize += size;
           count++;
         }
@@ -523,6 +535,25 @@ should be done via binding to the `selected` property of each model.
             this._groupStartIndex += inc;
             inc = this.getGroupLen();
           }
+        }
+      }
+    },
+
+    getRowCount: function(dir) {
+      if (!this.grid) {
+        return dir;
+      } else if (!this.groups) {
+        return dir * this._rowFactor;
+      } else {
+        if (dir < 0) {
+          if (this._groupStartIndex > 0) {
+            return -this._rowFactor;
+          } else {
+            var prevLen = this.getGroupLen(this._groupStart-1);
+            return -Math.min(this._rowFactor, prevLen % this._rowFactor || this._rowFactor);
+          }
+        } else {
+          return Math.min(this._rowFactor, this.getGroupLen() - this._groupStartIndex);
         }
       }
     },
@@ -608,12 +639,13 @@ should be done via binding to the `selected` property of each model.
           var idx = this._dir > 0 ? this._virtualStart : this._virtualStart + this._physicalCount -1;
           var size = this._physicalSizes[idx % this._physicalCount];
           flipSize -= size;
-          this.changeStartIndex(this._dir * this._rowFactor);
+          this.changeStartIndex(this.getRowCount(this._dir));
+          // console.log(this._scrollTop, 'flip ' + (this._dir > 0 ? 'down' : 'up'), cnt, this._virtualStart);
           if (this._dir > 0) {
             this._physicalOffset += size;
-            // console.log(this._scrollTop, 'flip down', this._virtualStart, size, this._physicalOffset);
+            // console.log('  ->', this._physicalOffset);
           } else {
-            this._upPending = true;  
+            this._upPending = true;
           }
         }
       }
@@ -628,11 +660,11 @@ should be done via binding to the `selected` property of each model.
         // When going up, remove offset after measuring size for
         // new data for item being moved from bottom to top
         if (physicalItem._dataInvalidated && this._dir < 0 && !randomAccess) {
-          if (virtualIndex % this._rowFactor == 0) {
+          if (groupItemIndex % this._rowFactor == 0) {
             this._physicalOffset -= this._physicalSizes[physicalIndex];
+            // console.log('  <-', this._physicalOffset);
           }
           this._upPending = false;
-          // console.log(this._scrollTop, 'flip up', this._virtualStart, -this._physicalSizes[physicalIndex], this._physicalOffset);
         }
         // Update physical item with new user data and list metadata
         this.updateItemData(physicalItem, physicalIndex, groupIndex, groupItemIndex, virtualIndex);
@@ -682,27 +714,52 @@ should be done via binding to the `selected` property of each model.
           }
         }
 
-      }
-
-      // Position items
-      var x = 0;
-      var y = this._physicalOffset;
-      for (i = 0; i < this._physicalCount; ++i) {
-        virtualIndex = this._virtualStart + i;
-        physicalIndex = virtualIndex % this._physicalCount;
-        physicalItem = this._physicalItems[physicalIndex];
-        if (this.grid) {
-          x = this._rowMargin + (virtualIndex % this._rowFactor) * this.width;
-        }
-        if (physicalItem._translateX != x || physicalItem._translateY != y) {
-          physicalItem.style.transform = physicalItem.style.webkitTransform =
-            'translate3d(' + x + 'px,' + y + 'px,0)';
-          physicalItem._translateX = x; // for debug
-          physicalItem._translateY = y; // for debug
-          console.log(physicalItem.style.transform);
-        }
-        if (!physicalItem._dataInvalidated && (virtualIndex % this._rowFactor == this._rowFactor-1)) {
-          y += this._physicalSizes[physicalIndex];
+        // Position items
+        var divider;
+        var rowx = 0;
+        var x = this._rowMargin;
+        var y = this._physicalOffset;
+        var lastHeight = 0;
+        for (i = 0; i < this._physicalCount; ++i) {
+          // Calculate indices
+          virtualIndex = this._virtualStart + i;
+          physicalIndex = virtualIndex % this._physicalCount;
+          physicalItem = this._physicalItems[physicalIndex];
+          // Position divider
+          if (this.groups && physicalItem._isDivider) {
+            if (rowx != 0) {
+              y += lastHeight;
+              rowx = 0;
+            }
+            divider = this._physicalDividers[physicalIndex];
+            if (divider) {
+              divider.style.transform = divider.style.webkitTransform =
+                'translate(' + this._rowMargin + 'px,' + y + 'px)';
+              y += divider.offsetHeight;
+            }
+            x = this._rowMargin;
+          }
+          // Position Item
+          if (physicalItem._translateX != x || physicalItem._translateY != y) {
+            physicalItem.style.transform = physicalItem.style.webkitTransform =
+              'translate(' + x + 'px,' + y + 'px)';
+            physicalItem._translateX = x; // for debug
+            physicalItem._translateY = y; // for debug
+          }
+          // Increment offsets
+          lastHeight = physicalItem.offsetHeight;
+          if (!physicalItem._dataInvalidated) {
+            if (this.grid) {
+              rowx++;
+              if (rowx >= this._rowFactor) {
+                rowx = 0;
+                y += lastHeight;
+              }
+              x = this._rowMargin + rowx * this.width;
+            } else {
+              y += lastHeight;
+            }
+          }
         }
       }
 

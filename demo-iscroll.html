@@ -40,13 +40,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <script>
     Polymer({
     ready: function() {
-      this.iscroll = new IScroll(this.$.scroller, {
+      this.iscroll = new IScroll(this, {
           mouseWheel: true,
           scrollbars: true,
           probeType: 3,
           useTransition: true
       });
       this.iscroll.on('scroll', function() {
+        this.iscroll.refresh();
         this.fire('scroll', {target: {scrollTop: -this.iscroll.y}}, this);
       }.bind(this));
       window.list = this.$.list;

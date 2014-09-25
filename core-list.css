@@ -33,11 +33,3 @@ polyfill-next-selector { content: '.core-list-viewport > *'; }
   will-change: transform;
   position: relative;
 }
-
-::content .core-list-hide-divider > [divider] {
-  display: none;
-};
-
-::content .core-list-sticky-divider {
-  position: absolute;
-}

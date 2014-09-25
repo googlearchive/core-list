@@ -67,12 +67,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       bottom: 0;
       padding: 12px 8px 8px 8px;
       color: white;
-      background: -moz-linear-gradient(top, rgba(0,0,0,0) 0%, rgba(0,0,0,0.3) 34%, rgba(0,0,0,0.5) 100%); /* FF3.6+ */
-      background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(0,0,0,0)), color-stop(34%,rgba(0,0,0,0.3)), color-stop(100%,rgba(0,0,0,0.5))); /* Chrome,Safari4+ */
-      background: -webkit-linear-gradient(top, rgba(0,0,0,0) 0%,rgba(0,0,0,0.3) 34%,rgba(0,0,0,0.5) 100%); /* Chrome10+,Safari5.1+ */
-      background: -o-linear-gradient(top, rgba(0,0,0,0) 0%,rgba(0,0,0,0.3) 34%,rgba(0,0,0,0.5) 100%); /* Opera 11.10+ */
-      background: -ms-linear-gradient(top, rgba(0,0,0,0) 0%,rgba(0,0,0,0.3) 34%,rgba(0,0,0,0.5) 100%); /* IE10+ */
-      background: linear-gradient(to bottom, rgba(0,0,0,0) 0%,rgba(0,0,0,0.3) 34%,rgba(0,0,0,0.5) 100%); /* W3C */
+      background: rgba(0,0,0,0.3);
     }
     .pad {
       padding: 16px;
@@ -85,12 +80,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <div>Flickr Photos</div>
   </core-toolbar>
   <div id="scroller" style="overflow:auto;" flex>
-    <core-list id="list" data="{{data}}" on-load-more="{{loadMore}}" XloadMoreThreshold="10" scrollTarget="{{$.scroller}}">
+    <core-list id="list" data="{{data}}" on-load-more="{{loadMore}}" loadMoreThreshold="10" scrollTarget="{{$.scroller}}">
       <template>
         <div class="item">
           <div class="photo" style="background-image:url(https://farm{{model.farm}}.staticflickr.com/{{model.server}}/{{model.id}}_{{model.secret}}_m.jpg);" relative>
             <div class="title">{{model.title}}</div>
-            <!-- <paper-shadow></paper-shadow> -->
+            <paper-shadow></paper-shadow>
           </div>
         </div>
       </template>
