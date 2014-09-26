@@ -11,10 +11,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <head>
   <title>core-list</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <script src="../../../platform/platform.js"></script>
-  <script src="../../../polymer-test-tools/chai/chai.js"></script>
-  <script src="../../../polymer-test-tools/htmltest.js"></script>
-  <link rel="import" href="../../core-list.html">
+  <script src="../../platform/platform.js"></script>
+  <script src="../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../core-list.html">
   <style>
     body {
       margin: 0;
@@ -52,11 +51,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 </core-list>
 
 <script>
-  document.addEventListener('polymer-ready', function() {
+  test('core-list-selection', function(done) {
     // Initial setup
     var list = document.querySelector('core-list');
     var physicalCount = Math.ceil(list.offsetHeight  / list.height);
     var index = 0;
+    var item;
     // Helper to create random items
     var generateItem = function() {
       return {
@@ -66,7 +66,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         type: Math.floor(Math.random()*3)
       };
     };
-    asyncSeries([
+    async.series([
       // Add many more than viewport
       function(next) {
         var more = physicalCount * 20;
@@ -81,8 +81,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
       // Select first item via tap
       function(next) {
-        var item = document.elementFromPoint(list.clientWidth-50, 0 * list.height);
-        item.dispatchEvent(new MouseEvent('tap', {'view': window, 'bubbles': true}));
+        waitFor(function() {
+          item = document.elementFromPoint(list.clientWidth-50, 0 * list.height);
+          chai.assert(item, 'item should exist at top of list');
+          item.dispatchEvent(new MouseEvent('tap', {'view': window, 'bubbles': true}));
+        }, next);
+      },
+      function(next) {
         waitFor(function() {
           chai.assert(list.selection && list.selection == list.data[0], 
             'first item should be selected; selected id was ' + list.selection && list.selection.id);
@@ -188,7 +193,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Select item 1 programmatically
       function(next) {
         list.selectItem(1);
-        var item = document.elementFromPoint(list.clientWidth-50, 1 * list.height);
+        item = document.elementFromPoint(list.clientWidth-50, 1 * list.height);
         waitFor(function() {
           chai.assert(list.selection && list.selection == list.data[1],
             'second item should be selected; selected id was ' + (list.selection && list.selection.id));

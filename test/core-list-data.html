@@ -11,10 +11,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <head>
   <title>core-list</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <script src="../../../platform/platform.js"></script>
-  <script src="../../../polymer-test-tools/chai/chai.js"></script>
-  <script src="../../../polymer-test-tools/htmltest.js"></script>
-  <link rel="import" href="../../core-list.html">
+  <script src="../../platform/platform.js"></script>
+  <script src="../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../core-list.html">
   <style>
     body {
       margin: 0;
@@ -52,7 +51,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 </core-list>
 
 <script>
-  document.addEventListener('polymer-ready', function() {
+  test('core-list-data', function(done) {
     // Initial setup
     var list = document.querySelector('core-list');
     var physicalCount = Math.ceil(list.offsetHeight  / list.height);
@@ -82,7 +81,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }, next);
     };
-    asyncSeries([
+    async.series([
       // Set data to null
       function(next) {
         populateList(function() {
