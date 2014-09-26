@@ -222,6 +222,11 @@ should be done via binding to the `selected` property of each model.
         this._target = target;
         this._target.addEventListener('scroll', this._boundScrollHandler, false);
       }
+      // Only use -webkit-overflow-touch from iOS8+, where scroll events are fired
+      var ios = navigator.userAgent.match(/iP(?:hone|ad;(?: U;)? CPU) OS (\d+)/);
+      if (ios && ios[1] >= 8) {
+        target.style.webkitOverflowScrolling = 'touch';
+      }
 
       this.initializeData();
     },
