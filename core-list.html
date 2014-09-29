@@ -1,3 +1,8 @@
+<!-- 
+TODO:
+* When target != this, measure above & below gap & take into account
+-->
+
 <!--
 Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
 This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
@@ -148,8 +153,6 @@ should be done via binding to the `selected` property of each model.
        */
        selection: null,
 
-       loadMoreThreshold: null,
-
        grid: false,
        width: null
     },
@@ -209,6 +212,32 @@ should be done via binding to the `selected` property of each model.
       this._oldSelectionEnabled = this.selectionEnabled;
     },
 
+    // WIP: gambit to keep visible rows visible when inserting data above
+    // currently visible rows - offset needs to be adjusted async :(
+    // _updateVirtualIndex: function(group, splices) {
+    //   if (this._target.scrollHeight === 0) {
+    //     return;
+    //   }
+    //   var groupOffset = this._nestedGroups ? this.virtualIndexForGroup(group) : 0;
+    //   var index = this._virtualStart;
+    //   for (var i=0; i<splices.length; i++) {
+    //     var s = splices[i];
+    //     if (s.index + groupOffset > index) {
+    //       break;
+    //     }
+    //     index = index - s.removed.length + s.addedCount;
+    //   }
+    //   var deltaCount = index - this._virtualStart;
+    //   if (deltaCount) {
+    //     var delta = deltaCount * this._physicalAverage;
+    //     this._physicalOffset += delta;
+    //     this._viewportHeight += delta;
+    //     this.$.viewport.style.height = this._viewportHeight + 'px';
+    //     this._scrollTop = this.setScrollTop(this._scrollTop + delta);
+    //     this.changeStartIndex(delta);
+    //   }
+    // },
+
     _updateSelection: function(splices) {
       for (var i=0; i<splices.length; i++) {
         var s = splices[i];
@@ -232,7 +261,8 @@ should be done via binding to the `selected` property of each model.
       var splices;
       if (arguments.length == 1) {
         splices = arguments[0];
-        this._updateSelection(splices, false);
+        // this._updateVirtualIndex(null, splices);
+        this._updateSelection(splices);
       } else {
         this._clearSelection();
       }
@@ -261,8 +291,8 @@ should be done via binding to the `selected` property of each model.
           target.style.webkitOverflowScrolling = 'touch';
         }
         // Force overflow as necessary
+        this._target.style.willChange = 'transform';
         if (target == this) {
-          this.style.willChange = 'transform';
           this.style.overflow = 'auto';
         } else {
           this.style.overflow = 'visible';
@@ -324,6 +354,7 @@ should be done via binding to the `selected` property of each model.
     },
 
     groupDataChanged: function(group, splices) {
+      // this._updateVirtualIndex(group, splices);
       this._updateSelection(splices);
       this.initializeData(null, true);
     },
@@ -381,9 +412,11 @@ should be done via binding to the `selected` property of each model.
       this.template.model = this._physicalData;
       this.template.setAttribute('repeat', '');
       if (needItemInit) {
+        this._itemInitPending = true;
         this.resetMetrics();
         this.onMutation(this, this.initializeItems);
-      } else {
+      }
+      if (!this._itemInitPending) {
         this.refresh(true);
       }
     },
@@ -402,6 +435,7 @@ should be done via binding to the `selected` property of each model.
         }
       }
       this.refresh(true);
+      this._itemInitPending = false;
     },
 
     updateItemData: function(physicalItem, physicalIndex, groupIndex, groupItemIndex, virtualIndex) {
@@ -448,23 +482,9 @@ should be done via binding to the `selected` property of each model.
       var delta = scrollTop - lastScrollTop;
       this._dir = delta < 0 ? -1 : delta > 0 ? 1 : 0;
       // console.log(scrollTop, 'scroll refresh', delta);
-      this.refresh(false, delta);
-      this.checkLoadMore();
-    },
-
-    checkLoadMore: function() {
-      if (this.loadMoreThreshold && !this.loadPending && 
-          (this._virtualStart > (this._virtualCount - this._physicalCount) - this.loadMoreThreshold)) {
-        // console.log('load more');
-        this.loadPending = true;
-        this.fire('load-more', {
-          done: function() {
-            this.async(function() {
-              this._loadDone = true;
-            });
-          }.bind(this)
-        });
-      }
+      // if (delta) {
+        this.refresh(false, delta);
+      // }
     },
 
     resetMetrics: function() {
@@ -513,6 +533,10 @@ should be done via binding to the `selected` property of each model.
     },
 
     changeStartIndex: function(inc) {
+      if (-inc > this._virtualStart || this._virtualStart + inc > this._virtualCount-1) {
+        console.trace('changeStartIndex to ', this._virtualStart);
+        debugger;
+      }
       this._virtualStart += inc;
       if (this.groups) {
         while (inc > 0) {
@@ -576,6 +600,7 @@ should be done via binding to the `selected` property of each model.
     },
 
     virtualIndexForGroup: function(group, groupIndex) {
+      groupIndex = groupIndex || 0;
       group--;
       while (group >= 0) {
         groupIndex += this.getGroupLen(group--);
@@ -606,11 +631,20 @@ should be done via binding to the `selected` property of each model.
       // Random access to point in list
       if (Math.abs(scrollDelta) > this._physicalSize) {
         randomAccess = true;
-        deltaCount = Math.round(scrollDelta / this._physicalAverage);
+        deltaCount = Math.round(scrollDelta / (this._physicalAverage * this._rowFactor));
         deltaCount = Math.max(deltaCount, -this._virtualStart);
         deltaCount = Math.min(deltaCount, this._virtualCount - this._virtualStart - 1);
         this._physicalOffset += scrollDelta;
         this.changeStartIndex(deltaCount);
+        // In grid mode, virtualIndex must alway start on a row start!
+        if (this.grid) {
+          if (this.groups) {
+            deltaCount = this._groupStartIndex % this._rowFactor;
+          } else {
+            deltaCount = this._virtualStart % this._rowFactor;
+          }
+          this.changeStartIndex(-deltaCount);
+        }
         // console.log(this._scrollTop, 'Random access to ' + this._virtualStart, this._physicalOffset);
       }
 
@@ -664,7 +698,6 @@ should be done via binding to the `selected` property of each model.
             this._physicalOffset -= this._physicalSizes[physicalIndex];
             // console.log('  <-', this._physicalOffset);
           }
-          this._upPending = false;
         }
         // Update physical item with new user data and list metadata
         this.updateItemData(physicalItem, physicalIndex, groupIndex, groupItemIndex, virtualIndex);
@@ -682,6 +715,7 @@ should be done via binding to the `selected` property of each model.
       }
 
       if (async) {
+        this._upPending = false;
         // Reset viewport height
         if (this._dir >= 0) {
           var remaining = Math.max(this._virtualCount - this._virtualStart - this._physicalCount - 1, 0);
@@ -694,13 +728,6 @@ should be done via binding to the `selected` property of each model.
             this.$.viewport.style.height = this._viewportHeight + 'px';
             // console.log('viewport height', this._viewportHeight);
           }
-        }
-        // Reset load status after viewport has been updated
-        if (this._loadDone) {
-          // console.log('laod done');
-          this._loadDone = false;
-          this.loadPending = false;
-          this.checkLoadMore();
         }
         // Adjust scroll position to home into top-dead-zero
         var deltaHeight;
@@ -906,7 +933,7 @@ should be done via binding to the `selected` property of each model.
 
     scrollToIndex: function(group, index) {
       if (arguments.length == 2) {
-        index = this.virtualIndexForGroup(group, index);
+        index = this.virtualIndexForGroup(group);
       } else {
         index = group;
       }

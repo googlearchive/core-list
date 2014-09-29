@@ -49,8 +49,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <polymer-element name="list-test" layout vertical relative>
 <template>
   <style>
-    .item {
+    .full {
       box-sizing: border-box;
+      width: 100%;
+    }
+    .item {
       padding: 16px;
     }
     .toolbar {
@@ -136,7 +139,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <core-list id="list" data="{{filteredData}}" groups="{{filteredGroups}}" flex runwayFactor="4">
     <template>
       <div class="divider" divider>{{groupModel.label}}</div>
-      <div>
+      <div class="full">
         <div class="item" layout horizontal>
           <img class="avatar" src="{{model.image}}">
           <div class="pad" flex layout vertical>

@@ -79,7 +79,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <div style="position: absolute; top:{{$.list.offsetTop}}px; left:{{$.list.offsetLeft}}px; width:{{$.list.offsetWidth}}px; height:{{$.list.offsetHeight}}px">
     <div class="marker viewport" style="top:{{-$.list.scrollTop}}px; height:{{$.list.$.viewport.offsetHeight}}px; width:{{$.list.$.viewport.offsetWidth}}px;"></div>
     <template repeat="{{$.list._physicalItems}}">
-      <div class="marker" style="top:{{offsetTop+_translate-parentNode.scrollTop}}px; left:{{offsetLeft}}px; width:{{offsetWidth}}px; height:{{offsetHeight}}px" hidden?="{{hidden}}">
+      <div class="marker" style="top:{{_translateY-parentNode.scrollTop}}px; left:{{offsetLeft}}px; width:{{offsetWidth}}px; height:{{offsetHeight}}px" hidden?="{{hidden}}">
         Group: {{templateInstance.model.groupIndex}}
         Index: {{templateInstance.model.index}}
         Phys: {{templateInstance.model.physicalIndex}}
@@ -109,10 +109,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   <core-ajax url="demo-data-grouped-short.json" response="{{data}}" auto></core-ajax>
 
-  <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}">
+  <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" runwayFactor="3">
     <template>
-      <div>
-        <div class="divider" divider>
+      <div style="width:100%;">
+        <div class="divider" divider hidden>
           {{groupModel.letter}}
         </div>
         <div class="item" style="xbackground-color: {{model.color}};">
