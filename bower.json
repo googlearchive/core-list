@@ -2,15 +2,15 @@
   "name": "core-list",
   "private": true,
   "dependencies": {
-    "polymer": "Polymer/polymer#master",
-    "core-selection": "Polymer/core-selection#master"
+    "polymer": "Polymer/polymer#^0.4.0",
+    "core-selection": "Polymer/core-selection#^0.4.0"
   },
   "devDependencies": {
-  	"web-component-tester": "Polymer/web-component-tester#master"
+    "web-component-tester": "Polymer/web-component-tester#master"
   },
   "ignore": [
-  	"/*",
-  	"!core-list.css",
-  	"!core-list.html"
+    "/*",
+    "!core-list.css",
+    "!core-list.html"
   ]
 }
