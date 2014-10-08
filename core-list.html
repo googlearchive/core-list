@@ -373,7 +373,14 @@ should be done via binding to the `selected` property of each model.
           return;
         }
 
-        var model = n.templateInstance && n.templateInstance.model;
+        // in case the tap was on some nested template or element instance,
+        // find an instance generated with this particular element template
+        // using the fact that they all are siblings of this.template
+        while (n && n.parentNode !== this.template.parentNode) {
+            n = n.host ? n.host : n.parentNode;
+        }
+
+        var model = n && n.templateInstance && n.templateInstance.model;
         if (model) {
           var vi = model.index, pi = model.physicalIndex;
           var data = this.data[vi], item = this._physicalItems[pi];
