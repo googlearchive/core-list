@@ -1,35 +1,30 @@
 :host {
   display: block;
-  overflow: auto;
-  /*-webkit-transform: translateZ(0);
-  transform: translateZ(0);*/
   outline: none;
   position: relative;
 }
 
-polyfill-next-selector { content: '.core-list-viewport > *'; }
+polyfill-next-selector { content: '.core-list-items > *'; }
 ::content > * {
   position: absolute;
   top: 0;
+  box-sizing: border-box;
 }
 
-.core-list-viewport > * {
-  /*overflow: hidden;*/
+polyfill-next-selector { content: ':host(:not([grid])) .core-list-items > *'; }
+:host(:not([grid])) ::content > * {
+  width: 100%;
 }
 
-.core-list-viewport.horizontal {
+.core-list-sizer {
+  width: 1px;
+}
+
+.core-list-items.horizontal {
   height: 100%;
   white-space: nowrap;
 }
 
-.core-list-viewport.horizontal > * {
+.core-list-items.horizontal > * {
   display: inline-block;
-}
-
-/* Setting will-change: transform on the #viewport makes the viewport a
-   stacking context, which causes all the composited layers inside the
-   viewport to actually be stacked underneath the viewport. */
-.core-list-viewport {
-  will-change: transform;
-  position: relative;
 }

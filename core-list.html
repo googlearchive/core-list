@@ -1,6 +1,8 @@
-<!-- 
-TODO:
-* When target != this, measure above & below gap & take into account
+<!--
+
+* Fix resize logic/positioning
+* Fix scrollToItem
+
 -->
 
 <!--
@@ -66,10 +68,14 @@ should be done via binding to the `selected` property of each model.
 <template>
   <core-selection id="selection" multi="{{multi}}" on-core-select="{{selectedHandler}}"></core-selection>
   <link rel="stylesheet" href="core-list.css">
-  <div id="viewport" class="core-list-viewport"><content></content></div>
+  <div id="viewport" class="core-list-sizer"></div>
+  <div class="core-list-items"><content></content></div>
 </template>
 <script>
 (function() {
+
+  var IOS = navigator.userAgent.match(/iP(?:hone|ad;(?: U;)? CPU) OS (\d+)/);
+  var IOS_TOUCH_SCROLLING = IOS && IOS[1] >= 8;
 
   Polymer('core-list', {
     
@@ -174,6 +180,11 @@ should be done via binding to the `selected` property of each model.
       this._physicalOffset = 0;
       this._physicalSize = 0;
       this._physicalSizes = [];
+      this._itemSizes = [];
+      this._dividerSizes = [];
+
+      this._aboveSize = 0;
+      this._belowSize = 0;
 
       this._nestedGroups = false;
       this._groupStart = 0;
@@ -181,6 +192,13 @@ should be done via binding to the `selected` property of each model.
 
       this._boundResizeHandler = this.resizeHandler.bind(this);
       window.addEventListener('resize', this._boundResizeHandler);
+      
+      // setInterval(function() {
+      //   console.log('fuzz');
+      //   for (var i=0; i<10000000; i++) {
+      //     Object.create(null);
+      //   }
+      // }, 1000);
     },
 
     attached: function() {
@@ -196,6 +214,7 @@ should be done via binding to the `selected` property of each model.
     },
 
     resizeHandler: function() {
+      this._resizePending = true;
       this.initializeData();
     },
 
@@ -231,8 +250,8 @@ should be done via binding to the `selected` property of each model.
     //   if (deltaCount) {
     //     var delta = deltaCount * this._physicalAverage;
     //     this._physicalOffset += delta;
-    //     this._viewportHeight += delta;
-    //     this.$.viewport.style.height = this._viewportHeight + 'px';
+    //     this._viewportSize += delta;
+    //     this.$.viewport.style.height = this._viewportSize + 'px';
     //     this._scrollTop = this.setScrollTop(this._scrollTop + delta);
     //     this.changeStartIndex(delta);
     //   }
@@ -286,17 +305,15 @@ should be done via binding to the `selected` property of each model.
           };
         }
         // Only use -webkit-overflow-touch from iOS8+, where scroll events are fired
-        var ios = navigator.userAgent.match(/iP(?:hone|ad;(?: U;)? CPU) OS (\d+)/);
-        if (ios && ios[1] >= 8) {
+        if (IOS_TOUCH_SCROLLING) {
           target.style.webkitOverflowScrolling = 'touch';
         }
         // Force overflow as necessary
         this._target.style.willChange = 'transform';
-        if (target == this) {
-          this.style.overflow = 'auto';
-        } else {
-          this.style.overflow = 'visible';
+        if (getComputedStyle(this._target).position == 'static') {
+          this._target.style.position = 'relative';
         }
+        this.style.overflowY = (target == this) ? 'auto' : null;
       }
 
       this.initializeData(splices, false);
@@ -401,19 +418,21 @@ should be done via binding to the `selected` property of each model.
       
       // Add physical items up to a max based on data length, viewport size, and extra item overhang
       var currentCount = this._physicalCount || 0;
-      this._physicalCount = Math.min(Math.ceil(this._target.offsetHeight / this.sizingHeight * this.runwayFactor * this._rowFactor), this._virtualCount);
+      this._physicalCount = Math.min(Math.ceil(this._target.offsetHeight / this.sizingHeight) * this.runwayFactor * this._rowFactor, this._virtualCount);
       this._physicalCount = Math.max(currentCount, this._physicalCount);
       this._physicalData = this._physicalData || new Array(this._physicalCount);
       var needItemInit = false;
       while (currentCount < this._physicalCount) {
-        this._physicalData[currentCount++] = {};
+        this._physicalData[currentCount++] = Object.create(this.templateInstance.model);
         needItemInit = true;
       }
       this.template.model = this._physicalData;
       this.template.setAttribute('repeat', '');
+      if (needItemInit || this._resizePending) {
+        this.resetMetrics();
+      }
       if (needItemInit) {
         this._itemInitPending = true;
-        this.resetMetrics();
         this.onMutation(this, this.initializeItems);
       }
       if (!this._itemInitPending) {
@@ -467,25 +486,31 @@ should be done via binding to the `selected` property of each model.
       physicalDatum.selected = this.selectionEnabled && virtualDatum ? 
           this._selectedData.get(virtualDatum) : null;
       physicalItem._isDivider = physicalDatum.isDivider;
+      physicalItem._rowStart = (this.groups ? groupItemIndex : virtualIndex) % this._rowFactor == 0;
       physicalItem.hidden = !virtualDatum;
       var divider = this._physicalDividers[physicalIndex];
-      if (divider) {
+      if (divider && (divider.hidden == physicalDatum.isDivider)) {
         divider.hidden = !physicalDatum.isDivider;
+      }
+      return physicalItem._dataInvalidated;
+    },
+
+    scrollHandler: function(e) {
+      var lastScrollTop = this._scrollTop;
+      var scrollTop = this._scrollTop = this._target.scrollTop;
+      var delta = scrollTop - lastScrollTop;
+      this._dir = delta < 0 ? -1 : delta > 0 ? 1 : 0;
+
+      if (IOS_TOUCH_SCROLLING) {
+        requestAnimationFrame(function() { 
+          this.refresh(false, delta)
+        }.bind(this));
+      } else {
+        this.refresh(false, delta)
       }
     },
 
     _dir: 0,
-    scrollHandler: function(e) {
-      var target = e.detail && e.detail.target || e.target;
-      var lastScrollTop = this._scrollTop;
-      var scrollTop = this._scrollTop = target.scrollTop;
-      var delta = scrollTop - lastScrollTop;
-      this._dir = delta < 0 ? -1 : delta > 0 ? 1 : 0;
-      // console.log(scrollTop, 'scroll refresh', delta);
-      // if (delta) {
-        this.refresh(false, delta);
-      // }
-    },
 
     resetMetrics: function() {
       this._physicalAverage = 0;
@@ -493,34 +518,55 @@ should be done via binding to the `selected` property of each model.
     },
 
     updateMetrics: function(force) {
+      // Measure physical items & dividers
       var totalSize = 0;
       var count = 0;
       for (var i=0; i<this._physicalCount; i++) {
         var item = this._physicalItems[i];
         if (!item.hidden) {
-          var size = item.offsetHeight;
+          var size = this._itemSizes[i] = item.offsetHeight;
           if (item._isDivider) {
             var divider = this._physicalDividers[i];
             if (divider) {
-              size += divider.offsetHeight;
+              size += (this._dividerSizes[i] = divider.offsetHeight);
             }
           }
           this._physicalSizes[i] = size;
-          totalSize += size;
-          count++;
+          if (item._rowStart) {
+            totalSize += size;
+            count++;
+          }
         }
       }
-      this._physicalSize = totalSize / this._rowFactor;
-      this._viewportHeight = this.$.viewport.offsetHeight;
+      this._physicalSize = totalSize;
+
+      // Measure other DOM
+      this._viewportSize = this.$.viewport.offsetHeight;
+      this._targetSize = this._target.offsetHeight;
+
+      // Measure content in scroller before & after virtualized items
+      if (this._target != this) {
+        el1 = this.previousElementSibling;
+        this._aboveSize = el1 ? el1.offsetTop + el1.offsetHeight : 0;
+        el1 = this.nextElementSibling;
+        el2 = el1 && el1.parentElement.lastElementChild;
+        this._belowSize = el1 && el2 ? el2.offsetTop + el2.offsetHeight - el1.offsetTop : 0;
+      } else {
+        this._aboveSize = 0;
+        this._belowSize = 0;
+      }
+      // console.log('above', this._aboveSize, 'below', this._belowSize);
 
       // Calculate flip bounds
-      var overhang = this._physicalSize - this._target.offsetHeight;
-      this._flipBound = this._physicalOffset + (this._dir > 0 ? 0.4 : 0.6) * overhang;
+      var overhang = this._physicalSize - this._targetSize;
+      this._flipBound = this._aboveSize + this._physicalOffset + (this._dir > 0 ? 0.4 : 0.6) * overhang;
 
       // Calculate average height
-      totalSize = (this._physicalAverage * this._physicalAverageCount) + totalSize;
-      this._physicalAverageCount += count;
-      this._physicalAverage = Math.round(totalSize / this._physicalAverageCount);
+      if (count) {
+        totalSize = (this._physicalAverage * this._physicalAverageCount) + totalSize;
+        this._physicalAverageCount += count;
+        this._physicalAverage = Math.round(totalSize / this._physicalAverageCount);
+      }
     },
 
     getGroupLen: function(group) {
@@ -561,6 +607,17 @@ should be done via binding to the `selected` property of each model.
           }
         }
       }
+      // In grid mode, virtualIndex must alway start on a row start!
+      if (this.grid) {
+        if (this.groups) {
+          inc = this._groupStartIndex % this._rowFactor;
+        } else {
+          inc = this._virtualStart % this._rowFactor;
+        }
+        if (inc) {
+          this.changeStartIndex(-inc);
+        }
+      }
     },
 
     getRowCount: function(dir) {
@@ -571,7 +628,7 @@ should be done via binding to the `selected` property of each model.
       } else {
         if (dir < 0) {
           if (this._groupStartIndex > 0) {
-            return -this._rowFactor;
+            return -Math.min(this._rowFactor, this._groupStartIndex);
           } else {
             var prevLen = this.getGroupLen(this._groupStart-1);
             return -Math.min(this._rowFactor, prevLen % this._rowFactor || this._rowFactor);
@@ -600,7 +657,7 @@ should be done via binding to the `selected` property of each model.
     },
 
     virtualIndexForGroup: function(group, groupIndex) {
-      groupIndex = groupIndex || 0;
+      groupIndex = groupIndex ? Math.min(groupIndex, this.getGroupLen(group)) : 0;
       group--;
       while (group >= 0) {
         groupIndex += this.getGroupLen(group--);
@@ -628,6 +685,16 @@ should be done via binding to the `selected` property of each model.
         return;
       }
 
+      // When resizing, adjust scroll position based on new rowFactor/average sizes
+      if (this._resizePending && async) {
+        var newPos = (this._virtualStart / this._rowFactor) * this._physicalAverage;
+        console.log('resize', this._scrollTop, newPos - this._scrollTop, this._aboveSize + newPos);
+        this.changeStartIndex(0); // Re-align grid start if necessary
+        this._physicalOffset += newPos - this._scrollTop;
+        this._scrollTop = this.setScrollTop(this._aboveSize + newPos);
+        this._resizePending = false;
+      }
+
       // Random access to point in list
       if (Math.abs(scrollDelta) > this._physicalSize) {
         randomAccess = true;
@@ -636,23 +703,14 @@ should be done via binding to the `selected` property of each model.
         deltaCount = Math.min(deltaCount, this._virtualCount - this._virtualStart - 1);
         this._physicalOffset += scrollDelta;
         this.changeStartIndex(deltaCount);
-        // In grid mode, virtualIndex must alway start on a row start!
-        if (this.grid) {
-          if (this.groups) {
-            deltaCount = this._groupStartIndex % this._rowFactor;
-          } else {
-            deltaCount = this._virtualStart % this._rowFactor;
-          }
-          this.changeStartIndex(-deltaCount);
-        }
         // console.log(this._scrollTop, 'Random access to ' + this._virtualStart, this._physicalOffset);
       }
 
       // Jump to index in list (special form of random access)
       if (this._scrollToIndex != null) {
         randomAccess = true;
-        deltaCount = this._scrollToIndex - this._virtualStart;
-        scrollDelta = deltaCount * this._physicalAverage;
+        deltaCount = Math.floor(this._scrollToIndex - this._virtualStart);
+        scrollDelta = deltaCount / this._rowFactor * this._physicalAverage;
         this._scrollTop = this.setScrollTop(this._scrollTop + scrollDelta);
         this._physicalOffset = this._scrollTop;
         this.changeStartIndex(deltaCount);
@@ -669,22 +727,28 @@ should be done via binding to the `selected` property of each model.
         var flipSize = Math.abs(this._scrollTop - this._flipBound);
         for (i=0; (i<this._physicalCount) && (flipSize > 0) &&
             ((this._dir < 0 && this._virtualStart > 0) || 
-             (this._dir > 0 && this._virtualStart < this._virtualCount-this._physicalCount-1)); i++) {
+             (this._dir > 0 && this._virtualStart < this._virtualCount-this._physicalCount)); i++) {
           var idx = this._dir > 0 ? this._virtualStart : this._virtualStart + this._physicalCount -1;
           var size = this._physicalSizes[idx % this._physicalCount];
           flipSize -= size;
-          this.changeStartIndex(this.getRowCount(this._dir));
-          // console.log(this._scrollTop, 'flip ' + (this._dir > 0 ? 'down' : 'up'), cnt, this._virtualStart);
+          var cnt = this.getRowCount(this._dir);
+          this.changeStartIndex(cnt);
+          console.log(this._scrollTop, 'flip ' + (this._dir > 0 ? 'down' : 'up'), cnt, this._virtualStart);
           if (this._dir > 0) {
+            // When scrolling down, offset is adjusted based on
+            // previous item's size
             this._physicalOffset += size;
             // console.log('  ->', this._physicalOffset);
           } else {
+            // When scrolling up, offset is adjusted based on
+            // new item's size, determined one frame later
             this._upPending = true;
           }
         }
       }
 
       // Assign data to items and adjust offset
+      var invalidated = false;
       var groupIndex = this.groups && this._groupStart;
       var groupItemIndex = this._groupStartIndex;
       for (i = 0; i < this._physicalCount; ++i) {
@@ -694,13 +758,14 @@ should be done via binding to the `selected` property of each model.
         // When going up, remove offset after measuring size for
         // new data for item being moved from bottom to top
         if (physicalItem._dataInvalidated && this._dir < 0 && !randomAccess) {
-          if (groupItemIndex % this._rowFactor == 0) {
+          if (groupItemIndex % this._rowFactor === 0) {
             this._physicalOffset -= this._physicalSizes[physicalIndex];
             // console.log('  <-', this._physicalOffset);
           }
         }
         // Update physical item with new user data and list metadata
-        this.updateItemData(physicalItem, physicalIndex, groupIndex, groupItemIndex, virtualIndex);
+        var itemInvalidated = this.updateItemData(physicalItem, physicalIndex, groupIndex, groupItemIndex, virtualIndex);
+        invalidated = invalidated || itemInvalidated;
         // Hide invalidated items until next frame when we have a chance to
         // measure and position them
         physicalItem.style.opacity = physicalItem._dataInvalidated ? 0 : 1;
@@ -715,30 +780,30 @@ should be done via binding to the `selected` property of each model.
       }
 
       if (async) {
-        this._upPending = false;
         // Reset viewport height
-        if (this._dir >= 0) {
+        if (this._dir >= 0 && this._scrollTop >= 0) {
           var remaining = Math.max(this._virtualCount - this._virtualStart - this._physicalCount - 1, 0);
           if (this.grid) {
             remaining = Math.ceil(remaining / this._rowFactor);
           }
-          var vh = this._physicalOffset + this._physicalSize + remaining * this._physicalAverage;
-          if (this._viewportHeight != vh) {
-            this._viewportHeight = vh;
-            this.$.viewport.style.height = this._viewportHeight + 'px';
-            // console.log('viewport height', this._viewportHeight);
+          var vs = this._physicalOffset + this._physicalSize + remaining * this._physicalAverage;
+          if (this._viewportSize != vs) {
+            console.log(this._scrollTop, 'adjusting viewport height', vs - this._viewportSize, vs);
+            this._viewportSize = vs;
+            this.$.viewport.style.height = this._viewportSize + 'px';
           }
         }
         // Adjust scroll position to home into top-dead-zero
         var deltaHeight;
-        if (this._dir < 0) {
+        if (this._upPending) {
           deltaHeight = this._virtualStart === 0 ? this._physicalOffset :
             Math.min(this._scrollTop + this._physicalOffset, 0);
           if (deltaHeight) {
+            console.log(this._scrollTop, 'adjusting scroll pos', -deltaHeight, this._scrollTop - deltaHeight);
             this._scrollTop = this.setScrollTop(this._scrollTop - deltaHeight);
             this._physicalOffset -= deltaHeight;
-            // console.log(this._scrollTop, 'adjusting scroll pos', deltaHeight);
           }
+          this._upPending = false;
         }
 
         // Position items
@@ -759,22 +824,24 @@ should be done via binding to the `selected` property of each model.
               rowx = 0;
             }
             divider = this._physicalDividers[physicalIndex];
-            if (divider) {
-              divider.style.transform = divider.style.webkitTransform =
-                'translate(' + this._rowMargin + 'px,' + y + 'px)';
-              y += divider.offsetHeight;
-            }
             x = this._rowMargin;
+            if (divider && (divider._translateX != x || divider._translateY != y)) {
+              divider.style.transform = divider.style.webkitTransform =
+                'translate3d(' + x + 'px,' + y + 'px,0)';
+              divider._translateX = x;
+              divider._translateY = y;
+            }
+            y += this._dividerSizes[physicalIndex];
           }
           // Position Item
           if (physicalItem._translateX != x || physicalItem._translateY != y) {
             physicalItem.style.transform = physicalItem.style.webkitTransform =
-              'translate(' + x + 'px,' + y + 'px)';
-            physicalItem._translateX = x; // for debug
-            physicalItem._translateY = y; // for debug
+              'translate3d(' + x + 'px,' + y + 'px,0)';
+            physicalItem._translateX = x;
+            physicalItem._translateY = y;
           }
           // Increment offsets
-          lastHeight = physicalItem.offsetHeight;
+          lastHeight = this._itemSizes[physicalIndex];
           if (!physicalItem._dataInvalidated) {
             if (this.grid) {
               rowx++;
@@ -790,12 +857,14 @@ should be done via binding to the `selected` property of each model.
         }
       }
 
-      Platform.performMicrotaskCheckpoint();
+            Platform.performMicrotaskCheckpoint();
 
       // Schedule another refresh to measure & position items
       if (!async) {
         requestAnimationFrame(function() {
           // console.log('async refresh');
+          if (invalidated) {
+          }
           this.refresh(false, 0, true, randomAccess);
         }.bind(this));
       }
@@ -931,9 +1000,16 @@ should be done via binding to the `selected` property of each model.
       this.selection = this.$.selection.getSelection();
     },
 
-    scrollToIndex: function(group, index) {
-      if (arguments.length == 2) {
-        index = this.virtualIndexForGroup(group);
+    /**
+     * Scroll to an index within a group.
+     *
+     * @method clearSelection
+     * @param {number} group 
+     * @param {number} index 
+     */
+    scrollToGroupIndex: function(group, index) {
+      if (group != null) {
+        index = this.virtualIndexForGroup(group, index);
       } else {
         index = group;
       }
@@ -944,12 +1020,24 @@ should be done via binding to the `selected` property of each model.
       // console.log('scroll from ' + this._scrollTop + ' to ' + this._target.scrollTop);
     },
 
+    /**
+     * Scroll to a group.
+     *
+     * @method clearSelection
+     * @param {number} group 
+     */
     scrollToGroup: function(group) {
-      var index = 0;
-      for (var i=0; i<group; i++) {
-        index += this.getGroupLen(i);
-      }
-      this.scrollToIndex(index);
+      this.scrollToGroupIndex(group, 0);
+    },
+
+    /**
+     * Scroll to an index.
+     *
+     * @method clearSelection
+     * @param {number} index 
+     */
+    scrollToIndex: function(index) {
+      this.scrollToGroupIndex(null, index);
     }
 
   });

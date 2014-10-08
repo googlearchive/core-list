@@ -74,6 +74,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
     .pad {
       padding: 16px;
+      align-items: center;
+    }
+    .pad-left {
+      padding-left: 8px;
     }
 
 
@@ -83,7 +87,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <div>Flickr Photos</div>
   </core-toolbar>
   <core-scroll-threshold id="threshold" scrollTarget="{{$.scroller}}" 
-    lowerThreshold="{{2*$.scroller.offsetHeight}}" on-lower-trigger="{{loadMore}}">
+    lowerThreshold="500" on-lower-trigger="{{loadMore}}">
   </core-scroll-threshold>
   <div id="scroller" style="overflow:auto;" flex>
     <core-list id="list" data="{{data}}" scrollTarget="{{$.scroller}}">
@@ -96,9 +100,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         </div>
       </template>
     </core-list>
-    <div class="pad" hidden?="{{!$.threshold.lowerTriggered}}">
+    <div class="pad" hidden?="{{!$.threshold.lowerTriggered}}" layout horizontal>
       <paper-spinner active></paper-spinner>
-      Loading...
+      <div class="pad-left">Loading...</div>
     </div>
   </div>
 </template>

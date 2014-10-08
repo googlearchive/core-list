@@ -49,10 +49,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <polymer-element name="list-test" layout vertical relative>
 <template>
   <style>
-    .full {
-      box-sizing: border-box;
-      width: 100%;
-    }
     .item {
       padding: 16px;
     }
@@ -123,9 +119,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         <paper-item label="{{group.data.label}}"></paper-item>
       </template>
     </paper-menu-button>
-    <div flex>Inbox
-      <!-- {{$.list.$.page.offsetHeight - ($.list.scrollTop - $.list._physicalOffset) - $.list.offsetHeight}}  -->
-    </div>
+    <div flex>Inbox</div>
     <core-icon-button id="searchButton" icon="search" on-tap="{{toggleSearch}}"></core-icon-button>
     <core-icon-button icon="check-circle"></core-icon-button>
   </core-toolbar>
@@ -139,7 +133,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <core-list id="list" data="{{filteredData}}" groups="{{filteredGroups}}" flex runwayFactor="4">
     <template>
       <div class="divider" divider>{{groupModel.label}}</div>
-      <div class="full">
+      <div>
         <div class="item" layout horizontal>
           <img class="avatar" src="{{model.image}}">
           <div class="pad" flex layout vertical>
@@ -154,13 +148,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </template>
   </core-list>
   <paper-fab class="fab" icon="add"></paper-fab>
-
-<!--   <div class="super-scroll" layout vertical center>
-    <template repeat="{{group, idx in data.groups}}">
-      <div flex layout vertical center-justified on-down="{{overLetter}}" on-track="{{overLetter}}">{{group.letter}}</div>
-    </template>
-  </div>
- -->
 </template>
 <script>
 (function() {
