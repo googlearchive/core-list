@@ -102,7 +102,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       <template>
         <div class="divider" divider>{{groupModel.name}}</div>
         <div class="item">
-          <core-image class="photo {{selected?'selected':''}}" sizing="cover" load?="{{!!model}}" src="https://farm4.staticflickr.com/3614/3466585318_650bcf03de_m.jpg" Xsrc="https://farm{{model.farm}}.staticflickr.com/{{model.server}}/{{model.id}}_{{model.secret}}_m.jpg" preload relative>
+          <core-image class="photo {{selected?'selected':''}}" sizing="cover" load?="{{!!model}}" src="https://farm{{model.farm}}.staticflickr.com/{{model.server}}/{{model.id}}_{{model.secret}}_m.jpg" preload relative>
           <!-- <div style="background-image:url(https://farm{{model.farm}}.staticflickr.com/{{model.server}}/{{model.id}}_{{model.secret}}_m.jpg);" class="photo"> -->
             <div class="title">{{index}} {{model.title}}</div>
           <!-- </div> -->
