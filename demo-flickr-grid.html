@@ -86,21 +86,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   <core-toolbar class="toolbar">
     <div>Flickr Photos</div>
+    {{$.list._virtualStart}}
   </core-toolbar>
   <core-scroll-threshold id="threshold" scrollTarget="{{$.scroller}}" 
-    lowerThreshold="1000" on-lower-trigger="{{loadMore}}">
+    XlowerThreshold="1000" Xon-lower-trigger="{{loadMore}}">
   </core-scroll-threshold>
   <div id="scroller" style="overflow:auto;" flex>
     <core-list id="list" data="{{data}}" scrollTarget="{{$.scroller}}" grid width="216">
       <template>
         <div class="item">
           <core-image class="photo" sizing="cover" load?="{{!!model}}" src="https://farm{{model.farm}}.staticflickr.com/{{model.server}}/{{model.id}}_{{model.secret}}_m.jpg" preload relative>
-            <div class="title">{{model.title}}</div>
+            <div class="title">{{index}} {{model.title}}</div>
           </core-image>
         </div>
       </template>
     </core-list>
-    <div class="pad" layout horizontal center-justified>
+    <div class="pad" hidden?="{{!$.threshold.lowerTriggered}}" layout horizontal center-justified>
       <paper-spinner active></paper-spinner>
       <div class="pad-left">Loading...</div>
     </div>
@@ -116,10 +117,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.page = 1;
       this.searchText = 'Japan';
       this.apiKey = 'c304f1096a06486d3c1e7ab271bf7f3f';
-      this.perPage = 97;
-      this.loadMore();
+      this.perPage = 100;
+      this.load(5);
     },
-    loadMore: function(e) {
+    loadMore: function() {
+      this.load();
+    },
+    load: function(moreCount) {
       if (this.page > 0) {
         var ajax = document.createElement('core-ajax');
         ajax.url = 'https://api.flickr.com/services/rest/?method=flickr.photos.search&api_key=' + 
@@ -133,6 +137,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               resp.photos.photo.forEach(function(o) { data.push(o); });
               this.page = (resp.photos.page != resp.photos.pages) ? resp.photos.page + 1 : 0;
               this.$.threshold.clearLower(!!this.page);
+              if (moreCount) {
+                this.load(--moreCount);
+              }
             }
           // }.bind(this), 2000);
         }.bind(this));

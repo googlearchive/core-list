@@ -39,7 +39,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     .item {
       box-sizing: border-box;
       padding: 10px;
-      overflow: hidden;
+      width: 100px;
     }    
     .body {
       font-size: 12px;
@@ -50,8 +50,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       border: 1px solid rgba(0,0,0,0.3);
     }
     .item > img {
-      height: 50px;
-      width: 50px;
+      height: 80px;
+      width: 80px;
     }
     .marker {
       position:absolute;
@@ -79,9 +79,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <div style="position: absolute; top:{{$.list.offsetTop}}px; left:{{$.list.offsetLeft}}px; width:{{$.list.offsetWidth}}px; height:{{$.list.offsetHeight}}px">
     <div class="marker viewport" style="top:{{-$.list.scrollTop}}px; height:{{$.list.$.viewport.offsetHeight}}px; width:{{$.list.$.viewport.offsetWidth}}px;"></div>
     <template repeat="{{$.list._physicalItems}}">
-      <div class="marker" style="top:{{_translateY-parentNode.scrollTop}}px; left:{{offsetLeft}}px; width:{{offsetWidth}}px; height:{{offsetHeight}}px" hidden?="{{hidden}}">
-        Group: {{templateInstance.model.groupIndex}}
-        Index: {{templateInstance.model.index}}
+      <div class="marker" style="top:{{_translateY-parentNode.scrollTop}}px; left:{{_translateX}}px; width:{{offsetWidth}}px; height:{{offsetHeight}}px" hidden?="{{hidden}}">
+        Group: {{templateInstance.model.groupIndex}}<br>
+        Index: {{templateInstance.model.index}}<br>
         Phys: {{templateInstance.model.physicalIndex}}
       </div>
     </template>
@@ -99,7 +99,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       <br>
       _physicalSize: {{$.list._physicalSize}} <br>
       _physicalAverage: {{$.list._physicalAverage}} <br>
-      _viewportSize: {{$.list._viewportSize}} <br>
+      _viewportHeight: {{$.list._viewportHeight}} <br>
       <br>
       _scrollTop: {{$.list._scrollTop}} <br>
       _flipBound: {{$.list._flipBound}} <br>
@@ -107,9 +107,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </div>
   </div>
 
-  <core-ajax url="demo-data-grouped-short.json" response="{{data}}" auto></core-ajax>
+  <core-ajax url="demo-data-grouped-short-nox.json" response="{{data}}" auto></core-ajax>
 
-  <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" runwayFactor="3">
+  <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" runwayFactor="3" grid width="100">
     <template>
       <div class="divider" divider hidden>
         {{groupModel.letter}}
@@ -117,11 +117,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       <div class="item" style="xbackground-color: {{model.color}};">
         <img src="{{model.image}}">
         <span>Index: {{index}}</span>
-        <br>
-        <select selectedIndex="{{model.selectValue}}"><option>a</option><option>b</option><option>c</option></select>
-        <input type="checkbox" checked="{{model.checked}}">
-        <input value="{{model.name}}">
-        <div>{{model.text}}</div>
       </div>
     </template>
   </core-list>
