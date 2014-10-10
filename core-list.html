@@ -420,7 +420,6 @@ should be done via binding to the `selected` property of each model.
       this._physicalCount = Math.max(currentCount, this._physicalCount);
       this._physicalData = this._physicalData || new Array(this._physicalCount);
       var needItemInit = false;
-      console.log('creating ' + (this._physicalCount - currentCount));
       while (currentCount < this._physicalCount) {
         this._physicalData[currentCount++] = Object.create(this.templateInstance.model);
         needItemInit = true;
@@ -430,6 +429,7 @@ should be done via binding to the `selected` property of each model.
       if (needItemInit || this._resizeToIndex) {
         this.resetMetrics();
       }
+      this._dir = 0;
       if (needItemInit) {
         this._itemInitPending = true;
         this.onMutation(this, this.initializeItems);
@@ -498,20 +498,15 @@ should be done via binding to the `selected` property of each model.
       var scrollTop = this._scrollTop = this._target.scrollTop;
       var delta = scrollTop - lastScrollTop;
 
-      // Only take action when not in overscroll
-      if (scrollTop >= 0 && scrollTop + this._targetSize < this._viewportSize) {
-        this._dir = delta < 0 ? -1 : delta > 0 ? 1 : 0;
-        if (IOS_TOUCH_SCROLLING) {
-          requestAnimationFrame(function() { 
-            this.refresh(false, delta)
-          }.bind(this));
-        } else {
-          this.refresh(false, delta)
-        }        
-      }
+      this._dir = delta < 0 ? -1 : delta > 0 ? 1 : 0;
+      if (IOS_TOUCH_SCROLLING) {
+        requestAnimationFrame(function() { 
+          this.refresh(false, delta);
+        }.bind(this));
+      } else {
+        this.refresh(false, delta);
+      }        
     },
-
-    _dir: 0,
 
     resetMetrics: function() {
       this._physicalAverage = 0;
@@ -580,10 +575,6 @@ should be done via binding to the `selected` property of each model.
     },
 
     changeStartIndex: function(inc) {
-      if (-inc > this._virtualStart || this._virtualStart + inc > this._virtualCount-1) {
-        console.trace('changeStartIndex to ', this._virtualStart);
-        debugger;
-      }
       this._virtualStart += inc;
       if (this.groups) {
         while (inc > 0) {
@@ -694,7 +685,7 @@ should be done via binding to the `selected` property of each model.
         deltaCount = Math.min(deltaCount, this._virtualCount - this._virtualStart - 1);
         this._physicalOffset += scrollDelta;
         this.changeStartIndex(deltaCount);
-        // console.log(this._scrollTop, 'Random access to ' + this._virtualStart, this._physicalOffset);
+        console.log(this._scrollTop, 'Random access to ' + this._virtualStart, this._physicalOffset);
       }
 
       // Jump to index in list (special form of random access)
@@ -739,7 +730,6 @@ should be done via binding to the `selected` property of each model.
       }
 
       // Assign data to items and adjust offset
-      var invalidated = false;
       var groupIndex = this.groups && this._groupStart;
       var groupItemIndex = this._groupStartIndex;
       for (i = 0; i < this._physicalCount; ++i) {
@@ -771,8 +761,8 @@ should be done via binding to the `selected` property of each model.
 
       if (async) {
         // Reset viewport height
-        if (this._dir >= 0) {
-          var remaining = Math.max(this._virtualCount - this._virtualStart - this._physicalCount - 1, 0);
+        if (this._dir >= 0 && (this._scrollTop >= 0)) {
+          var remaining = Math.max(this._virtualCount - this._virtualStart - this._physicalCount, 0);
           if (this.grid) {
             remaining = Math.ceil(remaining / this._rowFactor);
           }
@@ -785,7 +775,7 @@ should be done via binding to the `selected` property of each model.
         }
         // Adjust scroll position to home into top-dead-zero
         var deltaHeight;
-        if (this._upPending) {
+        if (this._upPending && (this._scrollTop + this._targetSize < this._viewportSize)) {
           deltaHeight = this._virtualStart === 0 ? this._physicalOffset :
             Math.min(this._scrollTop + this._physicalOffset, 0);
           if (deltaHeight) {
