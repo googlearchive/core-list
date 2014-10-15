@@ -810,7 +810,7 @@ should be done via binding to the `selected` property of each model.
                 divider.style.width = this.width * this._rowFactor + 'px';
               }
               divider.style.transform = divider.style.webkitTransform =
-                'translate(' + x + 'px,' + y + 'px)';
+                'translate3d(' + x + 'px,' + y + 'px,0)';
               divider._translateX = x;
               divider._translateY = y;
             }
@@ -819,7 +819,7 @@ should be done via binding to the `selected` property of each model.
           // Position Item
           if (physicalItem._translateX != x || physicalItem._translateY != y) {
             physicalItem.style.transform = physicalItem.style.webkitTransform =
-              'translate(' + x + 'px,' + y + 'px)';
+              'translate3d(' + x + 'px,' + y + 'px,0)';
             physicalItem._translateX = x;
             physicalItem._translateY = y;
           }
