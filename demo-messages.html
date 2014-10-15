@@ -52,6 +52,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     .item {
       padding: 16px;
     }
+    .item.selected{
+      background-color: #eee;
+    }
     .toolbar {
       background: #E91E63;
       box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.26);
@@ -134,7 +137,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <template>
       <div class="divider" divider>{{groupModel.label}}</div>
       <div>
-        <div class="item" layout horizontal>
+        <div class="item {{selected?'selected':''}}" layout horizontal>
           <img class="avatar" src="{{model.image}}">
           <div class="pad" flex layout vertical>
             <div class="primary">{{model.name}}</div>
