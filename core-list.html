@@ -42,9 +42,15 @@ The following code would render the list (note the `name` and `checked`
 properties are bound from the `model` object provided to the template
 scope):
 
+    <style>
+      core-list .row {
+        height: 80px;  /* row height must match height attribute on core-list */
+      }
+    </style>
+
     <core-list data="{{data}}" height="80">
       <template>
-        <div class="{{ {selected: selected} | tokenList }}">
+        <div class="row {{ {selected: selected} | tokenList }}">
           List row: {{index}}, User data from model: {{model.name}}
           <input type="checkbox" checked="{{model.checked}}">
         </div>
