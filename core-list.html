@@ -10,9 +10,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <!--
 `core-list` displays a virtual, 'infinite' list. The template inside the 
 `core-list` element represents the dom to create for each list item. The
-`data` property specifies an array of list item data. The `height` property
-represents the fixed height of a list item (variable height list items are
-not yet supported).
+`data` property specifies an array of list item data.
+
+NOTE: The `height` property must be specified and match the height of each
+row in the provided template.  Care should be taken to ensure the template
+row's height matches this property, as `core-list` currently only supports
+fixed-height rows.
 
 `core-list` manages a viewport of data based on the current scroll position.
 For performance reasons, not every item in the list is rendered at once.
