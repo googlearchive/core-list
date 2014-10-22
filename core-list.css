@@ -4,20 +4,16 @@
   position: relative;
 }
 
-polyfill-next-selector { content: '.core-list-items > *'; }
+polyfill-next-selector { content: '.core-list-viewport > *'; }
 ::content > * {
   position: absolute;
   top: 0;
   box-sizing: border-box;
 }
 
-polyfill-next-selector { content: ':host(:not([grid])) .core-list-items > *'; }
+polyfill-next-selector { content: ':host(:not([grid])) .core-list-viewport > *'; }
 :host(:not([grid])) ::content > * {
   width: 100%;
-}
-
-.core-list-sizer {
-  width: 1px;
 }
 
 .core-list-items.horizontal {

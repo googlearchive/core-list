@@ -35,7 +35,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <list-test></list-test>
 
-<polymer-element name="list-test" layout vertical center-center relative>
+<polymer-element name="list-test">
 <template>
   <style>
     .item {
@@ -59,11 +59,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   </style>
 
-  <core-list id="list" data="{{data}}" fit grid width="172">
+  <core-list id="list" data="{{data}}" groups="{{groups}}" fit grid width="172">
     <template>
+      <div class="divider" divider>
+        {{groupModel.label}}
+        <span style="font-size:0.5em">{{groupModel.length}} items</span>
+      </div>
       <div class="item {{selected ? 'selected' : ''}}">
         <core-image id="image" src="{{model.image}}" preload></core-image>
         <div>{{model.caption}}</div>
+        <div>Group: {{groupIndex}}, Item: {{groupItemIndex}}</div>
       </div>
     </template>
   </core-list>
@@ -74,20 +79,44 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer('list-test', {
     ready: function() {
       window.list = this.$.list;
+      var flat = false;  // Switch to test flat vs. nested
+      var nestedData = flat ? null : [];
       var data = [];
       var groups = [];
       var gidx = 0;
       var gitem = 0;
       var gmax = 3;
-      for (var i=0; i<1000; i++) {
-        var color = Math.floor(Math.random()*0xFFFFFF).toString(16);
+      var count = 1000;
+      for (var i=0; i<count; i++) {
         data.push({
-          image: 'http://placehold.it/150x150/' + color + '/ffffff&text=Index%20' + i,
-          caption: 'Caption ' + i,
-          color: color
+          image: 'http://placehold.it/150x150/' + Math.floor(Math.random()*0xFFFFFF).toString(16) + '/ffffff&text=Index%20' + i,
+          caption: 'Caption ' + i
         });
+        var group = groups[gidx];
+        if (!group) {
+          if (nestedData) {
+            group = groups[gidx] = {label: 'Group ' + gidx, length: 0};
+          } else {
+            group = groups[gidx] = {
+              length: 0,
+              data: {label: 'Group ' + gidx}
+            };
+          }
+          gmax += 4;
+          gmax %= 30;
+        }
+        if (++group.length >= gmax || i == count-1) {
+          gidx++;
+          if (nestedData) {
+            nestedData.push(data);
+            data = [];
+          } else {
+            group.data.length = group.length;
+          }
+        }
       }
-      this.data = data;
+      this.data = nestedData || data;
+      this.groups = groups;
     }
   });
 })();  

@@ -11,7 +11,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <head>
   <title>core-list</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <script src="../platform/platform.js"></script>
+  <script src="../webcomponentsjs/webcomponents.js"></script>
   <link rel="import" href="core-list.html">
   <link rel="import" href="../core-ajax/core-ajax.html">
   <link rel="import" href="../core-toolbar/core-toolbar.html">
@@ -89,7 +89,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     {{$.list._virtualStart}}
   </core-toolbar>
   <core-scroll-threshold id="threshold" scrollTarget="{{$.scroller}}" 
-    XlowerThreshold="1000" Xon-lower-trigger="{{loadMore}}">
+    lowerThreshold="1000" on-lower-trigger="{{loadMore}}">
   </core-scroll-threshold>
   <div id="scroller" style="overflow:auto;" flex>
     <core-list id="list" data="{{data}}" scrollTarget="{{$.scroller}}" grid width="216">
@@ -118,7 +118,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.searchText = 'Japan';
       this.apiKey = 'c304f1096a06486d3c1e7ab271bf7f3f';
       this.perPage = 100;
-      this.load(5);
+      this.load(1);
     },
     loadMore: function() {
       this.load();

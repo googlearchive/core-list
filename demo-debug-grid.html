@@ -12,9 +12,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <title>core-list</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <script>Object.observe = null;</script>
-  <script src="../platform/platform.js"></script>
+  <script src="../webcomponentsjs/webcomponents.js"></script>
   <link rel="import" href="core-list.html">
   <link rel="import" href="../core-ajax/core-ajax.html">
+  <link rel="import" href="../core-image/core-image.html">
   <style>
     html, body {
       margin: 0;
@@ -49,7 +50,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       width: 50%;
       border: 1px solid rgba(0,0,0,0.3);
     }
-    .item > img {
+    .item > core-image {
       height: 80px;
       width: 80px;
     }
@@ -107,7 +108,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </div>
   </div>
 
-  <core-ajax url="demo-data-grouped-short-nox.json" response="{{data}}" auto></core-ajax>
+  <core-ajax url="demo-data-grouped-short.json" response="{{data}}" auto></core-ajax>
 
   <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" runwayFactor="3" grid width="100">
     <template>
@@ -115,7 +116,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         {{groupModel.letter}}
       </div>
       <div class="item" style="xbackground-color: {{model.color}};">
-        <img src="{{model.image}}">
+        <core-image src="{{model.image}}" preload sizing="cover"></core-image>
         <span>Index: {{index}}</span>
       </div>
     </template>

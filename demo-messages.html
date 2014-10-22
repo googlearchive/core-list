@@ -11,7 +11,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <head>
   <title>core-list</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <script src="../platform/platform.js"></script>
+  <script src="../webcomponentsjs/webcomponents.js"></script>
   <link rel="import" href="core-list.html">
   <link rel="import" href="../core-ajax/core-ajax.html">
   <link rel="import" href="../core-icon/core-icon.html">
@@ -66,6 +66,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       border-radius: 20px;
       box-sizing: border-box;
       border: 1px solid #DDD;
+      background-color: #DDD;
     }
     .pad {
       padding: 0 16px;
@@ -133,14 +134,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       <core-icon-button icon="cancel" on-tap="{{toggleSearch}}"></core-icon-button>
     </core-toolbar>
   </core-overlay>
-  <core-list id="list" data="{{filteredData}}" groups="{{filteredGroups}}" flex runwayFactor="4">
+  <core-list id="list" data="{{filteredData}}" groups="{{filteredGroups}}" flex>
     <template>
       <div class="divider" divider>{{groupModel.label}}</div>
       <div>
         <div class="item {{selected?'selected':''}}" layout horizontal>
           <img class="avatar" src="{{model.image}}">
           <div class="pad" flex layout vertical>
-            <div class="primary">{{model.name}}</div>
+            <div class="primary">{{index}} {{model.name}}</div>
             <div class="secondary">{{model.shortText}}</div>
             <div class="secondary dim Xclamp">{{model.longText}}</div>
           </div>
