@@ -333,6 +333,7 @@ automatically based on the size of the list viewport.
       this._physicalOffset = 0;
       this._physicalSize = 0;
       this._physicalSizes = [];
+      this._physicalAverage = 0;
       this._itemSizes = [];
       this._dividerSizes = [];
       this._repositionedItems = [];
@@ -379,7 +380,7 @@ automatically based on the size of the list viewport.
     },
 
     // Adjust virtual start index based on changes to backing data
-    _updateVirtualIndex: function(splices, group) {
+    _adjustVirtualIndex: function(splices, group) {
       if (this._targetSize === 0) {
         return;
       }
@@ -448,7 +449,7 @@ automatically based on the size of the list viewport.
       if (arguments.length == 1) {
         splices = arguments[0];
         if (!this._nestedGroups) {
-          this._updateVirtualIndex(splices);
+          this._adjustVirtualIndex(splices);
         }
         this._updateSelection(splices);
       } else {
@@ -540,7 +541,7 @@ automatically based on the size of the list viewport.
     },
 
     groupDataChanged: function(splices, group) {
-      this._updateVirtualIndex(splices, group);
+      this._adjustVirtualIndex(splices, group);
       this._updateSelection(splices);
       this.initializeData(null, true);
     },
@@ -551,7 +552,7 @@ automatically based on the size of the list viewport.
       // Calculate row-factor for grid layout
       if (this.grid) {
         if (!this.width) {
-          throw 'grid requires the `width` property to be set';
+          throw 'Grid requires the `width` property to be set';
         }
         this._rowFactor = Math.floor(this._target.offsetWidth / this.width) || 1;
         this._rowMargin = (this._target.offsetWidth - (this._rowFactor * this.width)) / 2;
@@ -607,7 +608,8 @@ automatically based on the size of the list viewport.
       this.template.model = this._physicalData;
       this.template.setAttribute('repeat', '');
       this._dir = 0;
-      if (needItemInit) {
+      this._needItemInit = this._needItemInit || needItemInit;
+      if (this._needItemInit) {
         this.resetMetrics();
         this.onMutation(this, this.initializeItems);
       } else {
@@ -629,6 +631,7 @@ automatically based on the size of the list viewport.
         }
       }
       this.refresh();
+      this._needItemInit = false;
     },
 
     _updateItemData: function(force, physicalIndex, virtualIndex, groupIndex, groupItemIndex) {
