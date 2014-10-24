@@ -11,7 +11,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <head>
   <title>core-list</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <script>Object.observe = null;</script>
   <script src="../webcomponentsjs/webcomponents.js"></script>
   <link rel="import" href="core-list.html">
   <link rel="import" href="../core-ajax/core-ajax.html">
@@ -110,7 +109,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   <core-ajax url="demo-data-grouped-short.json" response="{{data}}" auto></core-ajax>
 
-  <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" runwayFactor="3" grid width="100">
+  <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" grid width="100">
     <template>
       <div class="divider" divider hidden>
         {{groupModel.letter}}

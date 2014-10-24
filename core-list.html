@@ -597,6 +597,9 @@ automatically based on the size of the list viewport.
             throw 'When using groups data, the sum of group[n].length\'s and data.length must agree!';
           }
         }
+        var g = this.groupForVirtualIndex(this._virtualStart);
+        this._groupStart = g.group;
+        this._groupStartIndex = g.groupIndex;
       } else {
         this._grouped = false;
         this._nestedGroups = false;
@@ -610,7 +613,7 @@ automatically based on the size of the list viewport.
       
       // Add physical items up to a max based on data length, viewport size, and extra item overhang
       var currentCount = this._physicalCount || 0;
-      this._physicalCount = Math.min(Math.ceil(this._target.offsetHeight / this.sizingHeight) * this.runwayFactor * this._rowFactor, this._virtualCount);
+      this._physicalCount = Math.min(Math.ceil(this._target.offsetHeight / (this._physicalAverage || this.sizingHeight)) * this.runwayFactor * this._rowFactor, this._virtualCount);
       this._physicalCount = Math.max(currentCount, this._physicalCount);
       this._physicalData = this._physicalData || new Array(this._physicalCount);
       var needItemInit = false;
@@ -660,7 +663,7 @@ automatically based on the size of the list viewport.
       var needsReposition;
       if (force || physicalDatum.model != virtualDatum) {
         // Hide items that are getting new models until positioned
-        physicalItem.style.opacity = force ? 1 : 0;
+        // physicalItem.style.opacity = force ? 1 : 0;
         // Set model, index, and selected fields
         physicalDatum.model = virtualDatum;
         physicalDatum.index = virtualIndex;
@@ -878,7 +881,7 @@ automatically based on the size of the list viewport.
      * @method refresh
      */
     refresh: function() {
-      var i, virtualIndex, physicalIndex, physicalItem, deltaCount;
+      var i, deltaCount;
 
       // Determine scroll position & any scrollDelta that may have occurred
       var lastScrollTop = this._scrollTop;
@@ -895,10 +898,9 @@ automatically based on the size of the list viewport.
         this._physicalOffset += Math.max(scrollDelta, -this._physicalOffset);
         this.changeStartIndex(deltaCount);
         console.log(this._scrollTop, 'Random access to ' + this._virtualStart, this._physicalOffset);
-      } else {        
+      } else {
         // Incremental movement: adjust index by flipping items
-        var flipBound = this._aboveSize + this._physicalOffset + 
-          (this._dir > 0 ? 0.4 : 0.6) * Math.max((this._physicalSize - this._targetSize, this._physicalSize));
+        var flipBound = this._dir > 0 ? this._upperBound : this._lowerBound;
         if (((this._dir > 0 && this._scrollTop > flipBound) ||
              (this._dir < 0 && this._scrollTop < flipBound))) {
           var flipSize = Math.abs(this._scrollTop - flipBound);
@@ -986,7 +988,7 @@ automatically based on the size of the list viewport.
       }
 
       // Position items
-      var divider;
+      var divider, upperBound, lowerBound;
       var rowx = 0;
       var x = this._rowMargin;
       var y = this._physicalOffset;
@@ -998,11 +1000,12 @@ automatically based on the size of the list viewport.
         physicalItem = this._physicalItems[physicalIndex];
         // Position divider
         if (physicalItem._isDivider) {
-          if (rowx != 0) {
+          if (rowx !== 0) {
             y += lastHeight;
             rowx = 0;
           }
           divider = this._physicalDividers[physicalIndex];
+          divider.style.opacity = 1;
           x = this._rowMargin;
           if (divider && (divider._translateX != x || divider._translateY != y)) {
             if (this.grid) {
@@ -1028,14 +1031,25 @@ automatically based on the size of the list viewport.
         if (this.grid) {
           rowx++;
           if (rowx >= this._rowFactor) {
+            lowerBound = y;
             rowx = 0;
             y += lastHeight;
+            if (!upperBound) {
+              upperBound = y;
+            }
           }
           x = this._rowMargin + rowx * this.width;
         } else {
+          lowerBound = y;
           y += lastHeight;
+          if (!upperBound) {
+            upperBound = y;
+          }
         }
       }
+      this._upperBound = this._aboveSize + upperBound;
+      this._lowerBound = this._aboveSize + lowerBound - this._targetSize;
+      // console.log('lower', lowerBound, 'upper', upperBound);
     },
 
     _updateViewportHeight: function() {
