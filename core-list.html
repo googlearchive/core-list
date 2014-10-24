@@ -319,7 +319,7 @@ automatically based on the size of the list viewport.
     _scrollTop: 0,
     
     observe: {
-      'data groups template scrollTarget': 'initialize',
+      'data grid width template scrollTarget': 'initialize',
       'multi selectionEnabled': '_resetSelection'
     },
 
@@ -362,7 +362,7 @@ automatically based on the size of the list viewport.
     },
 
     resizeHandler: function() {
-      this._resizePending = true;
+      this._resetIndex(this._getFirstVisibleIndex());
       this.initializeData();
     },
 
@@ -401,7 +401,7 @@ automatically based on the size of the list viewport.
         totalDelta += delta;
         this._physicalStart += delta;
         this._virtualStart += delta;
-        if (this.groups) {
+        if (this._grouped) {
           if (group) {
             gitem = s.index;
           } else {
@@ -435,16 +435,20 @@ automatically based on the size of the list viewport.
       }
     },
 
-    // TODO(sorvell): it'd be nice to dispense with 'data' and just use 
-    // template repeat's model. However, we need tighter integration
-    // with TemplateBinding for this.
+    groupsChanged: function() {
+      if (!!this.groups != this._grouped) {
+        this.initialize();
+      }
+    },
+
     initialize: function() {
       if (!this.template) {
         return;
       }
 
-      // TODO(kschaaf): This is currently the only way to know that the array
-      // was mutated as opposed to newly assigned; to be updated with better API
+      // TODO(kschaaf): Checking arguments.length currently the only way to 
+      // know that the array was mutated as opposed to newly assigned; need
+      // a better API for Polymer observers
       var splices;
       if (arguments.length == 1) {
         splices = arguments[0];
@@ -456,37 +460,43 @@ automatically based on the size of the list viewport.
         this._clearSelection();
       }
 
+      // Initialize scroll target
       var target = this.scrollTarget || this;
       if (this._target !== target) {
-        if (this._target) {
-          this._target.removeEventListener('scroll', this._boundScrollHandler, false);
-        }
-        this._target = target;
-        target.addEventListener('scroll', this._boundScrollHandler, false);
-        if ((target != this) && target.setScrollTop && target.getScrollTop) {
-          this.setScrollTop = function(val) {
-            target.setScrollTop(val);
-            return target.getScrollTop();
-          };
-        } else {
-          this.setScrollTop = function(val) {
-            target.scrollTop = val;
-            return target.scrollTop;
-          };
-        }
-        // Only use -webkit-overflow-touch from iOS8+, where scroll events are fired
-        if (IOS_TOUCH_SCROLLING) {
-          target.style.webkitOverflowScrolling = 'touch';
-        }
-        // Force overflow as necessary
-        this._target.style.willChange = 'transform';
-        if (getComputedStyle(this._target).position == 'static') {
-          this._target.style.position = 'relative';
-        }
-        this.style.overflowY = (target == this) ? 'auto' : null;
+        this.initializeScrollTarget(target);
       }
 
+      // Initialize data
       this.initializeData(splices, false);
+    },
+
+    initializeScrollTarget: function(target) {
+      if (this._target) {
+        this._target.removeEventListener('scroll', this._boundScrollHandler, false);
+      }
+      this._target = target;
+      target.addEventListener('scroll', this._boundScrollHandler, false);
+      if ((target != this) && target.setScrollTop && target.getScrollTop) {
+        this.setScrollTop = function(val) {
+          target.setScrollTop(val);
+          return target.getScrollTop();
+        };
+      } else {
+        this.setScrollTop = function(val) {
+          target.scrollTop = val;
+          return target.scrollTop;
+        };
+      }
+      // Only use -webkit-overflow-touch from iOS8+, where scroll events are fired
+      if (IOS_TOUCH_SCROLLING) {
+        target.style.webkitOverflowScrolling = 'touch';
+      }
+      // Force overflow as necessary
+      this._target.style.willChange = 'transform';
+      if (getComputedStyle(this._target).position == 'static') {
+        this._target.style.position = 'relative';
+      }
+      this.style.overflowY = (target == this) ? 'auto' : null;
     },
 
     updateGroupObservers: function(splices) {
@@ -562,10 +572,12 @@ automatically based on the size of the list viewport.
       }
 
       // Count virtual data size, depending on whether grouping is enabled
-      if (!this.data) {        
+      if (!this.data || !this.data.length) {
         this._virtualCount = 0;
+        this._grouped = false;
         this._nestedGroups = false;
       } else if (this.groups) {
+        this._grouped = true;
         this._nestedGroups = Array.isArray(this.data[0]);
         if (this._nestedGroups) {
           if (this.groups.length != this.data.length) {
@@ -586,6 +598,7 @@ automatically based on the size of the list viewport.
           }
         }
       } else {
+        this._grouped = false;
         this._nestedGroups = false;
         this._virtualCount = this.data.length;
       }
@@ -602,18 +615,24 @@ automatically based on the size of the list viewport.
       this._physicalData = this._physicalData || new Array(this._physicalCount);
       var needItemInit = false;
       while (currentCount < this._physicalCount) {
-        this._physicalData[currentCount++] = Object.create(this.templateInstance.model);
+        var model = this.templateInstance ? Object.create(this.templateInstance.model) : {};
+        this._physicalData[currentCount++] = model;
         needItemInit = true;
       }
       this.template.model = this._physicalData;
       this.template.setAttribute('repeat', '');
       this._dir = 0;
-      this._needItemInit = this._needItemInit || needItemInit;
-      if (this._needItemInit) {
-        this.resetMetrics();
-        this.onMutation(this, this.initializeItems);
-      } else {
-        this.refresh();
+
+      // If we've added new items, wait until the template renders then
+      // initialize the new items before refreshing
+      if (!this._needItemInit) {
+        if (needItemInit) {
+          this._needItemInit = true;
+          this.resetMetrics();
+          this.onMutation(this, this.initializeItems);
+        } else {
+          this.refresh();
+        }
       }
     },
 
@@ -649,27 +668,25 @@ automatically based on the size of the list viewport.
         physicalDatum.selected = this.selectionEnabled && virtualDatum ? 
             this._selectedData.get(virtualDatum) : null;
         // Set group-related fields
-        if (groupIndex == null) {
-          virtualDatum = this.data && this.data[virtualIndex];
-          physicalDatum.groupModel = null;
-          physicalDatum.groupIndex = null;
-          physicalDatum.groupItemIndex = null;
-          physicalDatum.isDivider = null;
-        } else {
+        if (this._grouped) {
           var groupModel = this.groups[groupIndex];
           physicalDatum.groupModel = groupModel && (this._nestedGroups ? groupModel : groupModel.data);
           physicalDatum.groupIndex = groupIndex;
           physicalDatum.groupItemIndex = groupItemIndex;
-          physicalDatum.isDivider = (groupItemIndex === 0);
+          physicalItem._isDivider = this.data.length && (groupItemIndex === 0);
+          physicalItem._isRowStart = (groupItemIndex % this._rowFactor) === 0;
+        } else {
+          physicalDatum.groupModel = null;
+          physicalDatum.groupIndex = null;
+          physicalDatum.groupItemIndex = null;
+          physicalItem._isDivider = false;
+          physicalItem._isRowStart = (virtualIndex % this._rowFactor) === 0;
         }
-        // Set fields used for positioning directly on item
-        physicalItem._isDivider = physicalDatum.isDivider;
-        physicalItem._isRowStart = (this.groups ? groupItemIndex : virtualIndex) % this._rowFactor == 0;
         // Hide physical items when not in use (no model assigned)
         physicalItem.hidden = !virtualDatum;
         var divider = this._physicalDividers[physicalIndex];
-        if (divider && (divider.hidden == physicalDatum.isDivider)) {
-          divider.hidden = !physicalDatum.isDivider;
+        if (divider && (divider.hidden == physicalItem._isDivider)) {
+          divider.hidden = !physicalItem._isDivider;
         }
         needsReposition = !force;
       } else {
@@ -757,7 +774,7 @@ automatically based on the size of the list viewport.
 
     changeStartIndex: function(inc) {
       this._virtualStart += inc;
-      if (this.groups) {
+      if (this._grouped) {
         while (inc > 0) {
           var groupMax = this.getGroupLen() - this._groupStartIndex - 1;
           if (inc > groupMax) {
@@ -782,7 +799,7 @@ automatically based on the size of the list viewport.
       }
       // In grid mode, virtualIndex must alway start on a row start!
       if (this.grid) {
-        if (this.groups) {
+        if (this._grouped) {
           inc = this._groupStartIndex % this._rowFactor;
         } else {
           inc = this._virtualStart % this._rowFactor;
@@ -796,7 +813,7 @@ automatically based on the size of the list viewport.
     getRowCount: function(dir) {
       if (!this.grid) {
         return dir;
-      } else if (!this.groups) {
+      } else if (!this._grouped) {
         return dir * this._rowFactor;
       } else {
         if (dir < 0) {
@@ -818,7 +835,7 @@ automatically based on the size of the list viewport.
     },
 
     groupForVirtualIndex: function(virtual) {
-      if (!this.groups) {
+      if (!this._grouped) {
         return {};
       } else {
         var group;
@@ -868,12 +885,6 @@ automatically based on the size of the list viewport.
       this._scrollTop = this._target.scrollTop;
       var scrollDelta = this._scrollTop - lastScrollTop;
       this._dir = scrollDelta < 0 ? -1 : scrollDelta > 0 ? 1 : 0;
-
-      // After a resize, reset index to keep first visible item on screen
-      if (this._resizePending) {
-        this._resizePending = false;
-        this._resetIndex(this._getFirstVisibleIndex());
-      }
 
       // Adjust virtual items and positioning offset if scroll occurred
       if (Math.abs(scrollDelta) > Math.max(this._physicalSize, this._targetSize)) {
@@ -926,7 +937,7 @@ automatically based on the size of the list viewport.
     _updateItems: function(force) {
       var i, virtualIndex, physicalIndex;
       var needsReposition = false;
-      var groupIndex = this.groups && this._groupStart;
+      var groupIndex = this._groupStart;
       var groupItemIndex = this._groupStartIndex;
       for (i = 0; i < this._physicalCount; ++i) {
         virtualIndex = this._virtualStart + i;
@@ -986,7 +997,7 @@ automatically based on the size of the list viewport.
         physicalIndex = this._virtualToPhysical(virtualIndex);
         physicalItem = this._physicalItems[physicalIndex];
         // Position divider
-        if (this.groups && physicalItem._isDivider) {
+        if (physicalItem._isDivider) {
           if (rowx != 0) {
             y += lastHeight;
             rowx = 0;
