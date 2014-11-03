@@ -33,7 +33,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <list-test></list-test>
 
-<polymer-element name="list-test" layout vertical center-center relative>
+<polymer-element name="list-test" relative>
 <template>
   <style>
     .item {
@@ -76,15 +76,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   </style>
 
-  <div style="position: absolute; top:{{$.list.offsetTop}}px; left:{{$.list.offsetLeft}}px; width:{{$.list.offsetWidth}}px; height:{{$.list.offsetHeight}}px">
-    <div class="marker viewport" style="top:{{-$.list.scrollTop}}px; height:{{$.list.$.viewport.offsetHeight}}px; width:{{$.list.$.viewport.offsetWidth}}px;"></div>
-    <template repeat="{{$.list._physicalItems}}">
-      <div class="marker" style="top:{{_translateY-parentNode.scrollTop}}px; left:{{_translateX}}px; width:{{offsetWidth}}px; height:{{offsetHeight}}px" hidden?="{{hidden}}">
-        Group: {{templateInstance.model.groupIndex}}<br>
-        Index: {{templateInstance.model.index}}<br>
-        Phys: {{templateInstance.model.physicalIndex}}
-      </div>
-    </template>
+  <core-ajax url="demo-data-grouped-short.json" response="{{data}}" auto></core-ajax>
+
+  <div fit layout vertical center-center style="transform: scale({{scale}})">
+    <div style="position: absolute; top:{{$.list.offsetTop}}px; left:{{$.list.offsetLeft}}px; width:{{$.list.offsetWidth}}px; height:{{$.list.offsetHeight}}px">
+      <div class="marker viewport" style="top:{{-$.list.scrollTop}}px; height:{{$.list.$.viewport.offsetHeight}}px; width:{{$.list.$.viewport.offsetWidth}}px;"></div>
+      <template repeat="{{$.list._physicalItems}}">
+        <div class="marker" style="top:{{_translateY-parentNode.scrollTop}}px; left:{{_translateX}}px; width:{{offsetWidth}}px; height:{{offsetHeight}}px" hidden?="{{hidden}}">
+          Group: {{templateInstance.model.groupIndex}}<br>
+          Index: {{templateInstance.model.index}}<br>
+          Phys: {{templateInstance.model.physicalIndex}}
+        </div>
+      </template>
+    </div>
+
+    <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" grid width="100">
+      <template>
+        <div class="divider" divider hidden>
+          {{groupModel.letter}}
+        </div>
+        <div class="item" style="xbackground-color: {{model.color}};">
+          <core-image src="{{model.image}}" preload sizing="cover"></core-image>
+          <span>Index: {{index}}</span>
+        </div>
+      </template>
+    </core-list>
   </div>
 
   <div style="position: absolute; top: 10px; right: 10px; width: 200px;">
@@ -102,24 +118,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _viewportHeight: {{$.list._viewportHeight}} <br>
       <br>
       _scrollTop: {{$.list._scrollTop}} <br>
-      _flipBound: {{$.list._flipBound}} <br>
+      _upperBound: {{$.list._upperBound}} <br>
+      _lowerBound: {{$.list._lowerBound}} <br>
       _physicalOffset: {{$.list._physicalOffset}} <br>
     </div>
+    <br>
+    Scale: <input type="number" value="{{scale}}" max="1" min="0.1" step="0.1">
   </div>
-
-  <core-ajax url="demo-data-grouped-short.json" response="{{data}}" auto></core-ajax>
-
-  <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" grid width="100">
-    <template>
-      <div class="divider" divider hidden>
-        {{groupModel.letter}}
-      </div>
-      <div class="item" style="xbackground-color: {{model.color}};">
-        <core-image src="{{model.image}}" preload sizing="cover"></core-image>
-        <span>Index: {{index}}</span>
-      </div>
-    </template>
-  </core-list>
 
 </template>
 <script>
@@ -128,6 +133,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   var colors = ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'violet'];
 
   Polymer('list-test', {
+    scale: 1,
     ready: function() {
       window.list = this.$.list;
     }

@@ -412,9 +412,8 @@ automatically based on the size of the list viewport.
         }
       }
       // Adjust offset/scroll position based on total number of items changed
-      if (this._virtualStart < this._physicalCount && 
-        this._physicalOffset > (this._physicalCount / this._rowFactor) * this._physicalAverage) {
-        this._resetIndex(this._virtualStart);
+      if (this._virtualStart < this._physicalCount) {
+        this._resetIndex(this._getFirstVisibleIndex());
       } else {
         totalDelta = Math.max((totalDelta / this._rowFactor) * this._physicalAverage, -this._physicalOffset);
         this._physicalOffset += totalDelta;
@@ -435,6 +434,7 @@ automatically based on the size of the list viewport.
     groupsChanged: function() {
       if (!!this.groups != this._grouped) {
         this.initialize();
+        this._resetIndex(this._getFirstVisibleIndex() || this._virtualStart);
       }
     },
 
@@ -897,7 +897,8 @@ automatically based on the size of the list viewport.
         console.log(this._scrollTop, 'Random access to ' + this._virtualStart, this._physicalOffset);
       } else {
         // Incremental movement: adjust index by flipping items
-        var flipBound = this._dir > 0 ? this._upperBound : this._lowerBound;
+        var flipBound = this._aboveSize + this._physicalOffset + 
+          (this._dir > 0 ? 0.4 : 0.6) * Math.max((this._physicalSize - this._targetSize, this._physicalSize));
         if (((this._dir > 0 && this._scrollTop > flipBound) ||
              (this._dir < 0 && this._scrollTop < flipBound))) {
           var flipSize = Math.abs(this._scrollTop - flipBound);
@@ -962,14 +963,8 @@ automatically based on the size of the list viewport.
       // Measure
       this.updateMetrics();
 
-      // Pre-positioning tasks, depending on scroll direction
-      if (this._dir >= 0) {
-        // Update viewport height to home into bottom when going down
-        // Note: scrollTop test excludes overscroll on iOS to prevent artifacts
-        if (this._scrollTop >= 0) {
-          this._updateViewportHeight();
-        }
-      } else {
+      // Pre-positioning tasks
+      if (this._dir < 0) {
         // When going up, remove offset after measuring size for
         // new data for item being moved from bottom to top
         while (this._repositionedItems.length) {
@@ -1028,25 +1023,18 @@ automatically based on the size of the list viewport.
         if (this.grid) {
           rowx++;
           if (rowx >= this._rowFactor) {
-            lowerBound = y;
             rowx = 0;
             y += lastHeight;
-            if (!upperBound) {
-              upperBound = y;
-            }
           }
           x = this._rowMargin + rowx * this.width;
         } else {
-          lowerBound = y;
           y += lastHeight;
-          if (!upperBound) {
-            upperBound = y;
-          }
         }
       }
-      this._upperBound = this._aboveSize + upperBound;
-      this._lowerBound = this._aboveSize + lowerBound - this._targetSize;
-      // console.log('lower', lowerBound, 'upper', upperBound);
+
+      if (this._scrollTop >= 0) {
+        this._updateViewportHeight();
+      }
     },
 
     _updateViewportHeight: function() {

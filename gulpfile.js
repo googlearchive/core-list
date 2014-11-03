@@ -1,2 +1,2 @@
 var gulp = require('gulp');
-require('gulp-web-component-tester').init(gulp);
+require('web-component-tester').gulp.init(gulp);
