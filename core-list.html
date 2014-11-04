@@ -322,6 +322,7 @@ automatically based on the size of the list viewport.
 
     ready: function() {
       this._boundScrollHandler = this.scrollHandler.bind(this);
+      this._boundPositionItems = this._positionItems.bind(this);
       this._oldMulti = this.multi;
       this._oldSelectionEnabled = this.selectionEnabled;
       this._virtualStart = 0;
@@ -927,10 +928,13 @@ automatically based on the size of the list viewport.
 
       // Assign data to items lazily if scrolling, otherwise force
       if (this._updateItems(!scrollDelta)) {
-        // Position items after bindings resolve, if needed
-        this.async(function() {
-          this._positionItems();
-        });
+        // Position items after bindings resolve (method varies based on O.o impl)
+        if (Observer.hasObjectObserve) {
+          this.async(this._boundPositionItems);
+        } else {
+          Platform.flush();
+          Platform.endOfMicrotask(this._boundPositionItems);
+        }
       }
     },
 
