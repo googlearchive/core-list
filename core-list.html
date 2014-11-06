@@ -693,7 +693,7 @@ the following abstract API:
         physicalDatum.index = virtualIndex;
         physicalDatum.physicalIndex = physicalIndex;
         physicalDatum.selected = this.selectionEnabled && virtualDatum ? 
-            this._selectedData.get(virtualDatum) : null;
+            (this._selectedData.get(virtualDatum) || false) : null;
         // Set group-related fields
         if (this._grouped) {
           var groupModel = this.groups[groupIndex];

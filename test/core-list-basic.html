@@ -76,6 +76,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         item.templateInstance.model && 
         item.templateInstance.model.index == index,
           'top item index should be ' + index + ' ' + positionDescription);
+      chai.assert(item.templateInstance.model.selected == false,
+          'top item should start out with selected == false');
       chai.assert(item.templateInstance.model.model == list.data[index],
           'top item model should be data[' + index + ']  ' + positionDescription);
       chai.assert(item.querySelector('#index').textContent == index,
