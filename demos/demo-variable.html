@@ -11,9 +11,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <head>
   <title>core-list</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <script src="../webcomponentsjs/webcomponents.js"></script>
-  <link rel="import" href="core-list.html">
-  <link rel="import" href="../core-ajax/core-ajax.html">
+  <script src="../../webcomponentsjs/webcomponents.js"></script>
+  <link rel="import" href="../core-list.html">
+  <link rel="import" href="../../core-ajax/core-ajax.html">
   <style>
     html, body {
       margin: 0;
@@ -85,21 +85,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" fit>
     <template>
-      <div>
-        <div class="divider" divider>
-          {{groupModel.letter}}
-        </div>
-        <div class="item {{selected ? 'selected' : ''}}">
-          <img id="image" src="{{model.image}}">
-          <span>Index: {{index}}, </span>
-          <span>Group: {{groupIndex}}, </span>
-          <span>Index in group: {{groupItemIndex}}</span>
-          <br>
-          <span id="select" selectedIndex="{{model.selectValue}}">Selected Index: {{model.selectValue}}</span> | 
-          <span id="checkbox" checked="{{model.checked}}">Checked: {{model.checked}} </span> | 
-          <span id="input" value="{{model.name}}">Input: {{model.name}}</span>
-          <div class="text" id="text">{{model.text}}</div>
-        </div>
+      <div class="divider" divider>
+        {{groupModel.letter}}
+      </div>
+      <div class="item {{selected ? 'selected' : ''}}">
+        <img id="image" src="{{model.image}}">
+        <span>Index: {{index}}, </span>
+        <span>Group: {{groupIndex}}, </span>
+        <span>Index in group: {{groupItemIndex}}</span>
+        <br>
+        <span id="select" selectedIndex="{{model.selectValue}}">Selected Index: {{model.selectValue}}</span> | 
+        <span id="checkbox" checked="{{model.checked}}">Checked: {{model.checked}} </span> | 
+        <span id="input" value="{{model.name}}">Input: {{model.name}}</span>
+        <div class="text" id="text">{{model.text}}</div>
       </div>
     </template>
   </core-list>

@@ -11,10 +11,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <head>
   <title>core-list - variable - iscroll</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <script src="../webcomponentsjs/webcomponents.js"></script>
-  <link rel="import" href="core-list.html">
-  <link rel="import" href="../core-ajax/core-ajax.html">
-  <script src="../iscroll/build/iscroll-probe.js"></script>
+  <script src="../../webcomponentsjs/webcomponents.js"></script>
+  <link rel="import" href="../core-list.html">
+  <link rel="import" href="../../core-ajax/core-ajax.html">
+  <script src="../../iscroll/build/iscroll-probe.js"></script>
   <style>
     html, body {
       margin: 0;
@@ -32,6 +32,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <body fit>
 
 <list-test></list-test>
+
+<polymer-element name="iscroll-scroller" relative>
+  <template>
+    <div id="scroller" fit style="overflow:hidden;"><content></content></div>
+  </template>
+  <script>
+    Polymer({
+    ready: function() {
+      this.iscroll = new IScroll(this, {
+          mouseWheel: true,
+          scrollbars: true,
+          probeType: 3,
+          useTransition: false
+      });
+      this.iscroll.on('scroll', function() {
+        this.fire('scroll', null, this, false);
+      }.bind(this));
+      window.list = this.$.list;
+    },
+    setScrollTop: function(val) {
+      this.iscroll.scrollTo(0, val);
+    },
+    getScrollTop: function() {
+      return -this.iscroll.y;
+    },
+    sync: function() {
+      this.iscroll.refresh();
+    }
+  });
+  </script>
+</polymer-element>
 
 <polymer-element name="list-test" layout vertical center-center relative>
 <template>
@@ -53,9 +84,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   </style>
 
-  <core-ajax url="demo-data.json" response="{{data}}" auto></core-ajax>
+  <core-ajax url="demo-data-short.json" response="{{data}}" auto></core-ajax>
 
-  <div id="scroller" fit>
+  <iscroll-scroller id="scroller" fit>
     <core-list id="list" data="{{data}}" scrollTarget="{{$.scroller}}">
       <template>
         <div>
@@ -71,28 +102,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         </div>
       </template>
     </core-list>
-  </div>
+  </iscroll-scroller>
 
 </template>
 <script>
 (function() {
-
   Polymer('list-test', {
-    ready: function() {
-      this.iscroll = new IScroll(this.$.scroller, {
-          mouseWheel: true,
-          scrollbars: true,
-          probeType: 3,
-          useTransition: true
-      });
-      this.iscroll.on('scroll', function() {
-        this.fire('scroll', {target: {scrollTop: -this.iscroll.y}}, this.$.scroller);
-      }.bind(this));
-      window.list = this.$.list;
-      setTimeout(function() {
-        this.iscroll.refresh();
-      }.bind(this), 2000);
-    }
   });
 })();  
 </script>

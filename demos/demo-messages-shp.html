@@ -11,20 +11,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <head>
   <title>core-list</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <script src="../webcomponentsjs/webcomponents.js"></script>
-  <link rel="import" href="core-list.html">
-  <link rel="import" href="../core-ajax/core-ajax.html">
-  <link rel="import" href="../core-icon/core-icon.html">
-  <link rel="import" href="../core-icon-button/core-icon-button.html">
-  <link rel="import" href="../core-icons/core-icons.html">
-  <link rel="import" href="../core-toolbar/core-toolbar.html">
-  <link rel="import" href="../paper-shadow/paper-shadow.html">
-  <link rel="import" href="../paper-icon-button/paper-icon-button.html">
-  <link rel="import" href="../paper-fab/paper-fab.html">
-  <link rel="import" href="../paper-menu-button/paper-menu-button.html">
-  <link rel="import" href="../paper-item/paper-item.html">
-  <link rel="import" href="../paper-input/paper-input.html">
-  <link rel="import" href="../core-overlay/core-overlay.html">
+  <script src="../../webcomponentsjs/webcomponents.js"></script>
+  <link rel="import" href="../core-list.html">
+  <link rel="import" href="../../core-ajax/core-ajax.html">
+  <link rel="import" href="../../core-icon/core-icon.html">
+  <link rel="import" href="../../core-icon-button/core-icon-button.html">
+  <link rel="import" href="../../core-icons/core-icons.html">
+  <link rel="import" href="../../core-toolbar/core-toolbar.html">
+  <link rel="import" href="../../paper-shadow/paper-shadow.html">
+  <link rel="import" href="../../paper-icon-button/paper-icon-button.html">
+  <link rel="import" href="../../paper-fab/paper-fab.html">
+  <link rel="import" href="../../paper-menu-button/paper-menu-button.html">
+  <link rel="import" href="../../paper-item/paper-item.html">
+  <link rel="import" href="../../paper-input/paper-input.html">
+  <link rel="import" href="../../core-overlay/core-overlay.html">
+  <link rel="import" href="../../core-scroll-header-panel/core-scroll-header-panel.html">
   <style>
     html, body {
       margin: 0;
@@ -50,10 +51,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <template>
   <style>
     .item {
+      box-sizing: border-box;
       padding: 16px;
-    }
-    .item.selected{
-      background-color: #eee;
     }
     .toolbar {
       background: #E91E63;
@@ -66,7 +65,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       border-radius: 20px;
       box-sizing: border-box;
       border: 1px solid #DDD;
-      background-color: #DDD;
     }
     .pad {
       padding: 0 16px;
@@ -117,41 +115,52 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   <core-ajax url="demo-data-500.json" response="{{data}}" auto></core-ajax>
 
-  <core-toolbar class="toolbar">
-    <paper-menu-button icon="menu" on-core-activate="{{jumpToGroup}}">
-      <template repeat="{{group, index in groups}}">
-        <paper-item label="{{group.data.label}}"></paper-item>
-      </template>
-    </paper-menu-button>
-    <div flex>Inbox</div>
-    <core-icon-button id="searchButton" icon="search" on-tap="{{toggleSearch}}"></core-icon-button>
-    <core-icon-button icon="check-circle"></core-icon-button>
-  </core-toolbar>
-  <core-overlay id="searchOverlay" transition="core-transition-right" on-core-overlay-open="{{searchOpened}}">
-    <core-toolbar class="toolbar" layout horizontal>
-      <core-icon icon="search"></core-icon>
-      <paper-input id="searchInput" flex on-input="{{updateFilter}}"></paper-input>
-      <core-icon-button icon="cancel" on-tap="{{toggleSearch}}"></core-icon-button>
-    </core-toolbar>
-  </core-overlay>
-  <core-list id="list" data="{{filteredData}}" groups="{{filteredGroups}}" flex>
-    <template>
-      <div class="divider" divider>{{groupModel.label}}</div>
-      <div>
-        <div class="item {{selected?'selected':''}}" layout horizontal>
-          <img class="avatar" src="{{model.image}}">
-          <div class="pad" flex layout vertical>
-            <div class="primary">{{index}} {{model.name}}</div>
-            <div class="secondary">{{model.shortText}}</div>
-            <div class="secondary dim Xclamp">{{model.longText}}</div>
-          </div>
-          <core-icon icon="{{model.boolean ? 'star' : 'star-outline'}}"></core-icon>
-        </div>
-        <div class="border"></div>
+  <core-scroll-header-panel condenses id="panel" fit>
+    <core-toolbar class="toolbar tall">
+      <paper-menu-button icon="menu" on-core-activate="{{jumpToGroup}}">
+        <template repeat="{{group, index in groups}}">
+          <paper-item label="{{group.data.label}}"></paper-item>
+        </template>
+      </paper-menu-button>
+      <div flex>Inbox
+        <!-- {{$.list.$.page.offsetHeight - ($.list.scrollTop - $.list._physicalOffset) - $.list.offsetHeight}}  -->
       </div>
-    </template>
-  </core-list>
+      <core-icon-button id="searchButton" icon="search" on-tap="{{toggleSearch}}"></core-icon-button>
+      <core-icon-button icon="check-circle"></core-icon-button>
+    </core-toolbar>
+    <core-overlay id="searchOverlay" transition="core-transition-right" on-core-overlay-open="{{searchOpened}}">
+      <core-toolbar class="toolbar" layout horizontal>
+        <core-icon icon="search"></core-icon>
+        <paper-input id="searchInput" flex on-input="{{updateFilter}}"></paper-input>
+        <core-icon-button icon="cancel" on-tap="{{toggleSearch}}"></core-icon-button>
+      </core-toolbar>
+    </core-overlay>
+    <core-list id="list" data="{{filteredData}}" groups="{{filteredGroups}}" content runwayFactor="4" content scrollTarget="{{$.panel.scroller}}">
+      <template>
+        <div class="divider" divider>{{groupModel.label}}</div>
+        <div>
+          <div class="item" layout horizontal>
+            <img class="avatar" src="{{model.image}}">
+            <div class="pad" flex layout vertical>
+              <div class="primary">{{model.name}}</div>
+              <div class="secondary">{{model.shortText}}</div>
+              <div class="secondary dim clamp">{{model.longText}}</div>
+            </div>
+            <core-icon icon="{{model.boolean ? 'star' : 'star-outline'}}"></core-icon>
+          </div>
+          <div class="border"></div>
+        </div>
+      </template>
+    </core-list>
+  </core-scroll-header-panel>
   <paper-fab class="fab" icon="add"></paper-fab>
+
+<!--   <div class="super-scroll" layout vertical center>
+    <template repeat="{{group, idx in data.groups}}">
+      <div flex layout vertical center-justified on-down="{{overLetter}}" on-track="{{overLetter}}">{{group.letter}}</div>
+    </template>
+  </div>
+ -->
 </template>
 <script>
 (function() {

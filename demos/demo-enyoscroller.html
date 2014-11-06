@@ -12,10 +12,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <title>core-list - variable - enyo scroller</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <script>Object.observe = null;</script>
-  <script src="../webcomponentsjs/webcomponents.js"></script>
-  <link rel="import" href="core-list.html">
-  <link rel="import" href="../core-ajax/core-ajax.html">
-  <link rel="import" href="../enyo/enyo-scroller.html">
+  <script src="../../webcomponentsjs/webcomponents.js"></script>
+  <link rel="import" href="../core-list.html">
+  <link rel="import" href="../../core-ajax/core-ajax.html">
+  <link rel="import" href="../../enyo/enyo-scroller.html">
   <style>
     html, body {
       margin: 0;
@@ -65,19 +65,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <enyo-scroller id="scroller" fit>
     <core-list id="list" data="{{data.data || data}}" groups="{{data.groups}}" scrollTarget="{{$.scroller}}">
       <template>
-        <div>
-          <div class="divider" divider>
-            {{groupModel.letter}}
-          </div>
-          <div class="item" style="xbackground-color: {{model.color}};">
-            <img id="image" src="{{model.image}}">
-            <span id="index">Index: {{index}}</span>
-            <br>
-            <span id="select" selectedIndex="{{selectValue}}">Selected Index: {{model.selectValue}}</span> | 
-            <span id="checkbox" checked="{{checked}}">Checked: {{model.checked}} </span> | 
-            <span id="input" value="{{name}}">Input: {{model.name}}</span>
-            <div id="text">{{model.text}}</div>
-          </div>
+        <div class="divider" divider>
+          {{groupModel.letter}}
+        </div>
+        <div class="item" style="xbackground-color: {{model.color}};">
+          <img id="image" src="{{model.image}}">
+          <span id="index">Index: {{index}}</span>
+          <br>
+          <span id="select" selectedIndex="{{selectValue}}">Selected Index: {{model.selectValue}}</span> | 
+          <span id="checkbox" checked="{{checked}}">Checked: {{model.checked}} </span> | 
+          <span id="input" value="{{name}}">Input: {{model.name}}</span>
+          <div id="text">{{model.text}}</div>
         </div>
       </template>
     </core-list>
