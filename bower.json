@@ -11,6 +11,8 @@
   "ignore": [
   	"/*",
   	"!core-list.css",
-  	"!core-list.html"
+  	"!core-list.html",
+    "!demo.html",
+    "!demos"
   ]
 }
