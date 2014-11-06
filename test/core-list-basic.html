@@ -54,7 +54,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   test('core-list-basic', function(done) {
     // Initial setup
     var list = document.querySelector('core-list');
-    var physicalCount = Math.ceil(list.offsetHeight  / list.height);
+    var height = 80;
+    var physicalCount = Math.ceil(list.offsetHeight  / height);
     var index = 0;
     var item;
     // Helper to create random items
@@ -90,7 +91,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     };
     var scrollItemsAndCheck = function(count, next) {
       index += count;
-      list.scrollTop += count * list.height;
+      list.scrollTop += count * height;
       waitFor(function() {
         checkTopItem('when scrolled to item ' + index);
       }, next);
@@ -124,7 +125,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
       // Select second item
       function(next) {
-        var item = document.elementFromPoint(list.clientWidth-50, list.height);
+        var item = document.elementFromPoint(list.clientWidth-50, height);
         item.dispatchEvent(new MouseEvent('tap', {'view': window, 'bubbles': true}));
         waitFor(function() {
           chai.assert(list.selection && list.selection.id == list.data[1].id, 
@@ -175,7 +176,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           list.data.push(generateItem());
         }
         waitFor(function() {
-          chai.assert(list.children.length == physicalCount + 1 + list.extraItems, // (+1 for template)
+          chai.assert(list.children.length > physicalCount + 1, // (+1 for template)
             'children.length should be ' + physicalCount + ' (1 template + max number of elements');
         }, next);
       },
@@ -238,7 +239,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Scroll all the way to bottom
       function(next) {
         list.scrollTop = 99999999;
-        index = list.data.length - Math.ceil(list.offsetHeight / list.height);
+        index = list.data.length - Math.ceil(list.offsetHeight / height);
         waitFor(function() {
           checkTopItem('at bottom of list');
         }, next);
@@ -258,7 +259,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       function(next) {
         list.data.length = list.data.length - 1;
         var lastIndex = index;
-        index = list.data.length - Math.ceil(list.offsetHeight / list.height);
+        index = list.data.length - Math.ceil(list.offsetHeight / height);
         waitFor(function() {
           checkTopItem('at bottom of list after deleting one item from end of list');
           chai.assert(list.selection.length === 1, 
@@ -271,25 +272,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       function(next) {
         list.data.length = list.data.length - Math.floor(list.data.length/2);
         var lastIndex = index;
-        index = list.data.length - Math.ceil(list.offsetHeight / list.height);
+        index = list.data.length - Math.ceil(list.offsetHeight / height);
         waitFor(function() {
           checkTopItem('at bottom of list after deleting half of items items from end of list');
           chai.assert(list.selection.length === 0, 
             'selection length should be 0');
-        }, next, 32, 100000000);
-      },
-      // Delete from top
-      function(next) {
-        list.data.splice(0, Math.floor(list.data.length/2));
-        index = list.data.length - Math.ceil(list.offsetHeight / list.height);
-        waitFor(function() {
-          checkTopItem('at bottom of list after deleting half of items items from top of list');
         }, next);
       },
       // Delete from top
       function(next) {
         list.data.splice(0, Math.floor(list.data.length/2));
-        index = list.data.length - Math.ceil(list.offsetHeight / list.height);
+        index = list.data.length - Math.ceil(list.offsetHeight / height);
+        waitFor(function() {
+          checkTopItem('at bottom of list after deleting half of items items from top of list');
+        }, next, 32);
+      },
+      // Delete from top
+      function(next) {
+        list.data.splice(0, Math.floor(list.data.length/2));
+        index = list.data.length - Math.ceil(list.offsetHeight / height);
         waitFor(function() {
           checkTopItem('at bottom of list after deleting half of items items from top of list (again)');
         }, next);

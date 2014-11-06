@@ -54,7 +54,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   test('core-list-selection', function(done) {
     // Initial setup
     var list = document.querySelector('core-list');
-    var physicalCount = Math.ceil(list.offsetHeight  / list.height);
+    var height = 80;
+    var physicalCount = Math.ceil(list.offsetHeight  / height);
     var index = 0;
     var item;
     // Helper to create random items
@@ -75,15 +76,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           list.data.push(generateItem());
         }
         waitFor(function() {
-          chai.assert(list.children.length == physicalCount + 1 + list.extraItems, // (+1 for template)
-            'children.length should be ' + physicalCount + ' (1 template + max number of elements');
+          chai.assert(list.children.length > physicalCount + 1, // (+1 for template)
+            'children.length should be > ' + physicalCount + ' (1 template + max number of elements');
         }, next);
       },
       // Select first item via tap
       function(next) {
         waitFor(function() {
-          item = document.elementFromPoint(list.clientWidth-50, 0 * list.height);
-          chai.assert(item, 'item should exist at top of list');
+          item = document.elementFromPoint(list.clientWidth-50, 0 * height);
+          chai.assert(!!item, 'item should exist at top of list');
           item.dispatchEvent(new MouseEvent('tap', {'view': window, 'bubbles': true}));
         }, next);
       },
@@ -97,8 +98,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
       // Select third item via tap
       function(next) {
-        var firstItem = document.elementFromPoint(list.clientWidth-50, 0 * list.height);
-        var thirdItem = document.elementFromPoint(list.clientWidth-50, 2 * list.height);
+        var firstItem = document.elementFromPoint(list.clientWidth-50, 0 * height);
+        var thirdItem = document.elementFromPoint(list.clientWidth-50, 2 * height);
         thirdItem.dispatchEvent(new MouseEvent('tap', {'view': window, 'bubbles': true}));
         waitFor(function() {
           chai.assert(list.selection && list.selection == list.data[2], 
@@ -111,8 +112,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
       // Select first item via tap
       function(next) {
-        var firstItem = document.elementFromPoint(list.clientWidth-50, 0 * list.height);
-        var thirdItem = document.elementFromPoint(list.clientWidth-50, 2 * list.height);
+        var firstItem = document.elementFromPoint(list.clientWidth-50, 0 * height);
+        var thirdItem = document.elementFromPoint(list.clientWidth-50, 2 * height);
         firstItem.dispatchEvent(new MouseEvent('tap', {'view': window, 'bubbles': true}));
         waitFor(function() {
           chai.assert(list.selection && list.selection == list.data[0], 
@@ -151,9 +152,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
       // Select first and third items (in addition to 2nd item)
       function(next) {
-        var firstItem = document.elementFromPoint(list.clientWidth-50, 0 * list.height);
-        var secondItem = document.elementFromPoint(list.clientWidth-50, 1 * list.height);
-        var thirdItem = document.elementFromPoint(list.clientWidth-50, 2 * list.height);
+        var firstItem = document.elementFromPoint(list.clientWidth-50, 0 * height);
+        var secondItem = document.elementFromPoint(list.clientWidth-50, 1 * height);
+        var thirdItem = document.elementFromPoint(list.clientWidth-50, 2 * height);
         firstItem.dispatchEvent(new MouseEvent('tap', {'view': window, 'bubbles': true}));
         thirdItem.dispatchEvent(new MouseEvent('tap', {'view': window, 'bubbles': true}));
         waitFor(function() {
@@ -176,9 +177,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Disable multi-selection, ensure selection is reset
       function(next) {
         list.multi = false;
-        var firstItem = document.elementFromPoint(list.clientWidth-50, 0 * list.height);
-        var secondItem = document.elementFromPoint(list.clientWidth-50, 1 * list.height);
-        var thirdItem = document.elementFromPoint(list.clientWidth-50, 2 * list.height);
+        var firstItem = document.elementFromPoint(list.clientWidth-50, 0 * height);
+        var secondItem = document.elementFromPoint(list.clientWidth-50, 1 * height);
+        var thirdItem = document.elementFromPoint(list.clientWidth-50, 2 * height);
         waitFor(function() {
           chai.assert(!list.selection, 
             'selection length should be 3');
@@ -193,7 +194,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Select item 1 programmatically
       function(next) {
         list.selectItem(1);
-        item = document.elementFromPoint(list.clientWidth-50, 1 * list.height);
+        item = document.elementFromPoint(list.clientWidth-50, 1 * height);
         waitFor(function() {
           chai.assert(list.selection && list.selection == list.data[1],
             'second item should be selected; selected id was ' + (list.selection && list.selection.id));
@@ -206,9 +207,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         list.multi = true;
         list.selectItem(0);
         list.selectItem(2);
-        var firstItem = document.elementFromPoint(list.clientWidth-50, 0 * list.height);
-        var secondItem = document.elementFromPoint(list.clientWidth-50, 1 * list.height);
-        var thirdItem = document.elementFromPoint(list.clientWidth-50, 2 * list.height);
+        var firstItem = document.elementFromPoint(list.clientWidth-50, 0 * height);
+        var secondItem = document.elementFromPoint(list.clientWidth-50, 1 * height);
+        var thirdItem = document.elementFromPoint(list.clientWidth-50, 2 * height);
         waitFor(function() {
           chai.assert(list.selection.length == 3, 
             'selection length should be 3');
