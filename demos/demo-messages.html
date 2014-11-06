@@ -22,6 +22,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <link rel="import" href="../../paper-icon-button/paper-icon-button.html">
   <link rel="import" href="../../paper-fab/paper-fab.html">
   <link rel="import" href="../../paper-menu-button/paper-menu-button.html">
+  <link rel="import" href="../../paper-dropdown/paper-dropdown.html">
+  <link rel="import" href="../../core-menu/core-menu.html">
   <link rel="import" href="../../paper-item/paper-item.html">
   <link rel="import" href="../../paper-input/paper-input.html">
   <link rel="import" href="../../core-overlay/core-overlay.html">
@@ -112,16 +114,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     #searchInput /deep/ .unfocused-underline {
       background: transparent;
     }
+    .menu {
+      color: black;
+    }
 
   </style>
 
   <core-ajax url="demo-data-500.json" response="{{data}}" auto></core-ajax>
 
   <core-toolbar class="toolbar">
-    <paper-menu-button icon="menu" on-core-activate="{{jumpToGroup}}">
-      <template repeat="{{group, index in groups}}">
-        <paper-item label="{{group.data.label}}"></paper-item>
-      </template>
+    <paper-menu-button>
+      <paper-icon-button icon="menu" noink></paper-icon-button>
+      <paper-dropdown class="dropdown">
+        <core-menu class="menu" on-core-activate="{{jumpToGroup}}">
+          <template repeat="{{group, index in groups}}">
+            <paper-item label="{{group.data.label}}"></paper-item>
+          </template>
+        </core-menu>
+      </paper-dropdown>
     </paper-menu-button>
     <div flex>Inbox</div>
     <core-icon-button id="searchButton" icon="search" on-tap="{{toggleSearch}}"></core-icon-button>

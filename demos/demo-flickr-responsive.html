@@ -25,6 +25,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <link rel="import" href="../../paper-shadow/paper-shadow.html">
   <link rel="import" href="../../paper-spinner/paper-spinner.html">
   <link rel="import" href="../../paper-menu-button/paper-menu-button.html">
+  <link rel="import" href="../../paper-dropdown/paper-dropdown.html">
+  <link rel="import" href="../../paper-icon-button/paper-icon-button.html">
+  <link rel="import" href="../../core-menu/core-menu.html">
   <link rel="import" href="../../core-image/core-image.html">
   <link rel="import" href="../../core-selector/core-selector.html">
   <link rel="import" href="../../paper-item/paper-item.html">
@@ -103,27 +106,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     #scroller {
       overflow: auto;
     }
+    .menu {
+      color: black;
+    }
   </style>
 
   <core-media-query query="min-width: 640px" queryMatches="{{wide}}"></core-media-query>
   <core-toolbar class="toolbar">
-    <paper-menu-button icon="menu">
-      <template repeat="{{group, idx in groups}}">
-        <paper-item on-tap="{{jumpToGroup}}" group="{{idx}}">{{group.data.name}}</paper-item>
-      </template>
+    <paper-menu-button>
+      <paper-icon-button icon="menu" noink></paper-icon-button>
+      <paper-dropdown class="dropdown">
+        <core-menu class="menu">
+          <template repeat="{{group, idx in groups}}">
+            <paper-item on-tap="{{jumpToGroup}}" group="{{idx}}">{{group.data.name}}</paper-item>
+          </template>
+        </core-menu>
+      </paper-dropdown>
     </paper-menu-button>
-    <paper-menu-button icon="{{modeEl.icon}}">
-      <core-selector selected="{{mode}}" selectedItem="{{modeEl}}">
-        <paper-item name="grid" icon="view-module">Grid</paper-item>
-        <paper-item name="list" icon="view-list">List</paper-item>
-        <paper-item name="responsive" icon="device:devices">Responsive</paper-item>
-      </core-selector>
+    <paper-menu-button>
+      <paper-icon-button icon="{{modeEl.icon}}" noink></paper-icon-button>
+      <paper-dropdown class="dropdown">
+        <core-menu class="menu" selected="{{mode}}" selectedItem="{{modeEl}}">
+          <paper-item name="grid" icon="view-module">Grid</paper-item>
+          <paper-item name="list" icon="view-list">List</paper-item>
+          <paper-item name="responsive" icon="device:devices">Responsive</paper-item>
+        </core-menu>
+      </paper-dropdown>
     </paper-menu-button>
-    <paper-menu-button icon="{{groupedEl.icon}}">
-      <core-selector selected="{{grouped}}" selectedItem="{{groupedEl}}">
-        <paper-item name="yes" icon="image:filter-none">Show Groups</paper-item>
-        <paper-item name="no" icon="image:crop-din">No Groups</paper-item>
-      </core-selector>
+    <paper-menu-button>
+      <paper-icon-button icon="{{groupedEl.icon}}" noink></paper-icon-button>
+      <paper-dropdown class="dropdown">
+        <core-menu class="menu" selected="{{grouped}}" selectedItem="{{groupedEl}}">
+          <paper-item name="yes" icon="image:filter-none">Show Groups</paper-item>
+          <paper-item name="no" icon="image:crop-din">No Groups</paper-item>
+        </core-menu>
+      </paper-dropdown>      
     </paper-menu-button>
     <paper-slider id="slider" min="150" max="400" step="50" value="{{size}}"></paper-slider>
   </core-toolbar>
