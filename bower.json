@@ -10,6 +10,7 @@
   },
   "ignore": [
   	"/*",
+    "!bower.json",
   	"!core-list.css",
   	"!core-list.html",
     "!demo.html",
