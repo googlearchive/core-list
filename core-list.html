@@ -293,6 +293,7 @@ the following abstract API:
       /**
        * 
        * When `grid` is used, `width` determines the width of each grid item.
+       * This property has no meaning when not in `grid` mode.
        *
        * @attribute width
        * @type number
@@ -301,17 +302,17 @@ the following abstract API:
        width: null,
 
       /**
-       * The approximate height of a list item. This is used only for determining
+       * The approximate height of a list item, in pixels. This is used only for determining
        * the number of physical elements to render based on the viewport size
        * of the list.  Items themselves may vary in height between each other
        * depending on their data model.  There is typically no need to adjust 
        * this value unless the average size is much larger or smaller than the default.
        *
-       * @attribute sizingHeight
+       * @attribute height
        * @type number
        * @default 200
        */
-      sizingHeight: 200,
+      height: 200,
 
       /**
        * The amount of scrolling runway the list keeps rendered, as a factor of
@@ -357,7 +358,7 @@ the following abstract API:
       this._groupStart = 0;
       this._groupStartIndex = 0;
 
-      this._boundResizeHandler = this.resizeHandler.bind(this);
+      this._boundResizeHandler = this.updateSize.bind(this);
       window.addEventListener('resize', this._boundResizeHandler);
     },
 
@@ -373,7 +374,14 @@ the following abstract API:
       this.removeEventListener(this._boundResizeHandler);
     },
 
-    resizeHandler: function() {
+    /**
+     * To be called by the user when the list is resized or shown
+     * after being hidden.  Note, `core-list` calls this automatically
+     * when the window is resized.
+     *
+     * @method updateSize
+     */
+    updateSize: function() {
       this._resetIndex(this._getFirstVisibleIndex());
       this.initializeData();
     },
@@ -639,7 +647,7 @@ the following abstract API:
       
       // Add physical items up to a max based on data length, viewport size, and extra item overhang
       var currentCount = this._physicalCount || 0;
-      this._physicalCount = Math.min(Math.ceil(this._target.offsetHeight / (this._physicalAverage || this.sizingHeight)) * this.runwayFactor * this._rowFactor, this._virtualCount);
+      this._physicalCount = Math.min(Math.ceil(this._target.offsetHeight / (this._physicalAverage || this.height)) * this.runwayFactor * this._rowFactor, this._virtualCount);
       this._physicalCount = Math.max(currentCount, this._physicalCount);
       this._physicalData = this._physicalData || new Array(this._physicalCount);
       var needItemInit = false;
