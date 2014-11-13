@@ -382,7 +382,9 @@ the following abstract API:
      * @method updateSize
      */
     updateSize: function() {
-      this._resetIndex(this._getFirstVisibleIndex());
+      if (this.grid) {
+        this._resetIndex(this._getFirstVisibleIndex() || 0);
+      }
       this.initializeData();
     },
 
