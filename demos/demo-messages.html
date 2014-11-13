@@ -198,7 +198,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         clearTimeout(this.filterThrottle);
       }
       this.filterThrottle = setTimeout(function() {
-        var value = this.$.searchInput.inputValue;
+        var value = this.$.searchInput.value;
         this.filteredGroups = value ? null : this.groups;
         this.filteredData = this.data.filter(function(o) {
           return new RegExp(value, 'i').test(o.name);
