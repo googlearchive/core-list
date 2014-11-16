@@ -1035,7 +1035,7 @@ the following abstract API:
       }
 
       // Position items
-      var divider, upperBound, lowerBound;
+      var divider, upperBound, lowerBound, z;
       var rowx = 0;
       var x = this._rowMargin;
       var y = this._physicalOffset;
@@ -1045,6 +1045,8 @@ the following abstract API:
         virtualIndex = this._virtualStart + i;
         physicalIndex = this._virtualToPhysical(virtualIndex);
         physicalItem = this._physicalItems[physicalIndex];
+        // Calculate z translation
+        z = this.data.length - virtualIndex;
         // Position divider
         if (physicalItem._isDivider) {
           if (rowx !== 0) {
@@ -1053,25 +1055,27 @@ the following abstract API:
           }
           divider = this._physicalDividers[physicalIndex];
           x = this._rowMargin;
-          if (divider && (divider._translateX != x || divider._translateY != y)) {
+          if (divider && (divider._translateX != x || divider._translateY != y || divider._translateZ != z)) {
             divider.style.opacity = 1;
             if (this.grid) {
               divider.style.width = this.width * this._rowFactor + 'px';
             }
             divider.style.transform = divider.style.webkitTransform =
-              'translate3d(' + x + 'px,' + y + 'px,0)';
+              'translate3d(' + x + 'px,' + y + 'px,' + z + 'px)';
             divider._translateX = x;
             divider._translateY = y;
+            divider._translateZ = z;
           }
           y += this._dividerSizes[physicalIndex];
         }
         // Position item
-        if (physicalItem._translateX != x || physicalItem._translateY != y) {
+        if (physicalItem._translateX != x || physicalItem._translateY != y || physicalItem._translateZ != z) {
           physicalItem.style.opacity = 1;
           physicalItem.style.transform = physicalItem.style.webkitTransform =
-            'translate3d(' + x + 'px,' + y + 'px,0)';
+            'translate3d(' + x + 'px,' + y + 'px,' + z + 'px)';
           physicalItem._translateX = x;
           physicalItem._translateY = y;
+          physicalItem._translateZ = z;
         }
         // Increment offsets
         lastHeight = this._itemSizes[physicalIndex];
