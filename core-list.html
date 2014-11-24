@@ -781,7 +781,7 @@ the following abstract API:
 
       // Measure content in scroller before virtualized items
       if (this._target != this) {
-        el1 = this.previousElementSibling;
+        var el1 = this.previousElementSibling;
         this._aboveSize = el1 ? el1.offsetTop + el1.offsetHeight : 0;
       } else {
         this._aboveSize = 0;
