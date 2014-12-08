@@ -371,13 +371,13 @@ the following abstract API:
       if (!this.template.bindingDelegate) {
         this.template.bindingDelegate = this.element.syntax;
       }
-      this.resizeableAttachedHandler();
+      this.resizableAttachedHandler();
     },
 
     detached: function() {
       this.isAttached = false;
       this.removeEventListener(this._boundScrollHandler);
-      this.resizeableDetachedHandler();
+      this.resizableDetachedHandler();
     },
 
     /**
