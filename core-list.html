@@ -376,7 +376,9 @@ the following abstract API:
 
     detached: function() {
       this.isAttached = false;
-      this.removeEventListener(this._boundScrollHandler);
+      if (this._target) {
+        this._target.removeEventListener('scroll', this._boundScrollHandler);
+      }
       this.resizableDetachedHandler();
     },
 
