@@ -1058,7 +1058,7 @@ the following abstract API:
               divider.style.width = this.width * this._rowFactor + 'px';
             }
             divider.style.transform = divider.style.webkitTransform =
-              'translate3d(' + x + 'px,' + y + 'px,0)';
+              'translate(' + x + 'px,' + y + 'px)';
             divider._translateX = x;
             divider._translateY = y;
           }
@@ -1068,7 +1068,7 @@ the following abstract API:
         if (physicalItem._translateX != x || physicalItem._translateY != y) {
           physicalItem.style.opacity = 1;
           physicalItem.style.transform = physicalItem.style.webkitTransform =
-            'translate3d(' + x + 'px,' + y + 'px,0)';
+            'translate(' + x + 'px,' + y + 'px)';
           physicalItem._translateX = x;
           physicalItem._translateY = y;
         }
