@@ -1116,11 +1116,21 @@ the following abstract API:
       }
     },
 
+    _isElementInsideDivider: function(element) {
+      while (element && element.nodeName != 'CONTENT') {
+        if (element.getAttribute('divider') != null) {
+          return true;
+        }
+        element = element.parentElement;
+      }
+      return false;
+    },
+
     // list selection
     tapHandler: function(e) {
       var n = e.target;
       var p = e.path;
-      if (!this.selectionEnabled || (n === this)) {
+      if (!this.selectionEnabled || (n === this) || this._isElementInsideDivider(n)) {
         return;
       }
       requestAnimationFrame(function() {
