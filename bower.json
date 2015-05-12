@@ -10,6 +10,7 @@
   	"web-component-tester": "Polymer/web-component-tester#master",
     "core-ajax": "Polymer/core-ajax#master",
     "core-animated-pages": "Polymer/core-animated-pages#master",
+    "core-header-panel": "Polymer/core-header-panel",
     "core-icon": "Polymer/core-icon#master",
     "core-icon-button": "Polymer/core-icon-button#master",
     "core-icons": "Polymer/core-icons#master",
