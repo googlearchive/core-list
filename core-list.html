@@ -668,6 +668,9 @@ the following abstract API:
       // Add physical items up to a max based on data length, viewport size, and extra item overhang
       var currentCount = this._physicalCount || 0;
       var height = this._target.offsetHeight;
+      if (!height){
+        height = this._target.offsetParent.offsetHeight;
+      }
       if (!height && this._target.offsetParent) {
         console.warn('core-list must either be sized or be inside an overflow:auto div that is sized');
       }
